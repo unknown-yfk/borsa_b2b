@@ -58,37 +58,24 @@
                                                     </div>
                                                 </td>
                                                 <td class="text-right font-weight-semibold align-middle p-4">
-                                                    {{ $item->subTotal/$item->ordered_quantity}} br</td>
-                                                             @if ($item->kd_adjusted_quantity == 0)
+                                                    {{ $item->subTotal/$item->delivered_quantity}} br
+                                                </td>
+
+
                                             <td class="align-middle p-4"><input type="number"
-                                                    class="form-control text-center" value="{{ $item->ordered_quantity }}"
-                                                    readonly></td>
-                                                                  @php
-                                                    // $totalSum += $p->ordered_quantity * $p->price;
-                                                    $totalSum += $item->ordered_quantity * $item->subTotal/$item->ordered_quantity;
+                                                    class="form-control text-center" value="{{ $item->delivered_quantity }}"
+                                                    readonly>
+                                            </td>
+
+                                            <td class="text-right font-weight-semibold align-middle p-4">
+                                                    {{ $item->subTotal }} br
+                                                    @php
+
+                                                   $totalSum += $item->subTotal ;
+
 
                                                 @endphp
-                                            @elseif ($item->kd_adjusted_quantity !== 0)
-                                            <td class="align-middle p-4"><input type="number"
-                                                    class="form-control text-center" value="{{ $item->kd_adjusted_quantity}}"
-                                                    readonly></td>
-                                                          @php
-                                                    // $totalSum += $p->delivered_quantity * $p->price;
-                                                    $totalSum += $item->kd_adjusted_quantity * $item->subTotal/$item->ordered_quantity;
-
-                                                    // $totalSum += $p->kd_adjusted_quantity * $p->price;
-                                                @endphp
-                                                    @endif
-
-                                            @if ($item->kd_adjusted_quantity == 0)
-                                                <td class="text-right font-weight-semibold align-middle p-4">
-                                                    {{ $item->subTotal }} br</td>
-                                            @elseif ($item->kd_adjusted_quantity !== 0)
-                                                <td class="text-right font-weight-semibold align-middle p-4">
-                                                    {{  $item->kd_adjusted_quantity * $item->subTotal/$item->ordered_quantity }} br</td>
-                                            @endif
-
-
+                                            </td>
 
                                                 <td class="text-right font-weight-semibold align-middle p-4">
 

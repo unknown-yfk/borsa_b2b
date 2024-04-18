@@ -1,5 +1,12 @@
-      <nav class="sidebar sidebar-offcanvas" id="sidebar">
-        <ul class="nav  position-fixed">
+
+<style>
+#sidebar
+{
+    width: 260px;
+}
+</style>
+     <nav class="sidebar sidebar-offcanvas" id="sidebar">
+        <ul class="nav">
           <li class="nav-item">
             <a class="nav-link" href="/romDashboard">
               <i class="mdi mdi-home menu-icon"></i>
@@ -108,6 +115,11 @@
                 <li class="nav-item"> <a class="nav-link" href="/rom/productperagent/report">Product Report Per Agent</a></li>
                 <li class="nav-item"> <a class="nav-link" href="/rom/productperloaction/report">Product Report<br> Per Location</a></li>
                 <li class="nav-item"> <a class="nav-link" href="/rom/productpersubloaction/report">Product Report <br> Per  Sub-Location</a></li>
+
+                     <li class="nav-item"> <a class="nav-link" href="/rom/ordercapture/report">Order Capture Summary <br> Report</a></li>
+                     <li class="nav-item"> <a class="nav-link"  href="/rom/ordercapturetransaction/report">Order Capture Transaction <br> Summary Report</a></li>
+                     <li class="nav-item"> <a class="nav-link"  href="/rom/orderfulfilment/report">Order Fulfilment <br> Summary Report</a></li>
+                     <li class="nav-item"> <a class="nav-link"  href="/rom/orderfulfilmenttransaction/report">Order Fulfilment Transaction <br> Summary Report </a></li>
 
               </ul>
             </div>

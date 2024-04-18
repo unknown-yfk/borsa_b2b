@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Support\Facades\Log;
 use App\Models\tm;
 use App\Models\user;
 use App\Models\order;
@@ -24,11 +25,15 @@ use App\Models\undeliveredOrders;
 use App\Models\Handover_hierarchy;
 use Illuminate\Support\Facades\DB;
 use App\Models\undelivered1Products;
+use App\Models\order_statuses;
+use App\Models\cities;
+use App\Models\regions;
 use Illuminate\Support\Facades\Hash;
 use RealRashid\SweetAlert\Facades\Alert;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Validator;
 use Symfony\Component\Console\Input\Input;
+use App\Helpers\LogActivity;
 
 
 
@@ -37,12 +42,26 @@ class adminController extends Controller
 
 
 
-    public function Order_hierarchy()
+    public function orderstatus()
     {
-        $hierarchy= Handover_hierarchy::all();
-        return view('admin.Order_hierarchy',compact('hierarchy'));
+
+        $order_status=cities::join('regions','regions.id','=','cities.region_id')
+        ->get(['regions.name as Region','cities.name','cities.order_status','cities.id']);
+
+        return view('admin.order_status',compact('order_status'));
+    }
+     public function order_status_report()
+    {
+        $order_status=order_statuses::all();
+        return view('admin.order_status_report',compact('order_status'));
     }
 
+     public function Order_hierarchy()
+    {
+        $hierarchy= Handover_hierarchy::all();
+        LogActivity::addToLog('View Order hierarchy');
+        return view('admin.Order_hierarchy',compact('hierarchy'));
+    }
     public function store_Order_hierarchy(Request $request)
 
     {
@@ -64,6 +83,7 @@ class adminController extends Controller
         $hierarchy = Handover_hierarchy::find($request->hierarchy_id);
         $hierarchy->status = $request->status;
         $hierarchy->save();
+        LogActivity::addToLog('Change order hierarchy status');
 
         return response()->json(['success'=>'Status change successfully.']);
     }
@@ -109,6 +129,9 @@ $jsonResult = json_encode([$todaysOrders, $agents,$kds]);
         // $catagory = ProductCatagory::all();
         // $productType= ProductType::all();
         // return view('KD.addProducts', $data );
+        LogActivity::addToLog('Register Product view');
+
+
         return view('admin.addProducts',compact('key_distro'),$data);
     }
 
@@ -155,6 +178,8 @@ $jsonResult = json_encode([$todaysOrders, $agents,$kds]);
         $products->KD_ID = $request->Kd_id;
         $products->productlist_id = $request->id;
          $products->save();
+        LogActivity::addToLog('Register Product Store');
+
         Alert::toast('Product Added Successfully', 'success');
         return redirect('/admin/add/product');
 
@@ -162,9 +187,16 @@ $jsonResult = json_encode([$todaysOrders, $agents,$kds]);
 
 
     }
-      public function view_productlist()
+    public function getCities($regionId)
+    {
+        $cities = cities::where('region_id', $regionId)->get();
+        return response()->json($cities);
+    }
+      public function view_productlist(Request $request)
     {
         $products= ProductList::all();
+        LogActivity::addToLog('View Product List');
+      
         return view('admin.viewProductslist',compact('products'));
 
     }
@@ -177,6 +209,8 @@ $jsonResult = json_encode([$todaysOrders, $agents,$kds]);
         // $catagory = ProductCatagory::all();
         // $productType= ProductType::all();
         // return view('KD.addProducts', $data );
+        LogActivity::addToLog('Register Product List View');
+
         return view('admin.addProductslist',compact('key_distro'),$data);
     }
 
@@ -219,6 +253,8 @@ $jsonResult = json_encode([$todaysOrders, $agents,$kds]);
         $products->min_order = $request->min_order;
         $products->max_order = $request->max_order;
         $products->save();
+        LogActivity::addToLog('Register Product List Store');
+
         Alert::toast('Product Added Successfully', 'success');
         return redirect('/admin/view/productlist');
     }
@@ -229,6 +265,8 @@ $jsonResult = json_encode([$todaysOrders, $agents,$kds]);
     {
  $products= product::join('users','users.id','=','products.KD_ID')
         ->get(['products.*','users.firstName','users.middleName','users.lastName']);
+        LogActivity::addToLog('View products');
+
         return view('admin.viewProducts',compact('products'));
 
           }
@@ -242,6 +280,8 @@ $jsonResult = json_encode([$todaysOrders, $agents,$kds]);
         // $productType= ProductType::all();
         // return view('KD.addProducts', $data );
         // return view('admin.addProducts',compact('key_distro'),$data);
+        LogActivity::addToLog('View productslist Edit');
+
         return view('admin.editProductslist',compact('products', 'productType','key_distro'),$data);
 
     }
@@ -255,6 +295,8 @@ $jsonResult = json_encode([$todaysOrders, $agents,$kds]);
         // $productType= ProductType::all();
         // return view('KD.addProducts', $data );
         // return view('admin.addProducts',compact('key_distro'),$data);
+        LogActivity::addToLog('Edit products view');
+
         return view('admin.editProducts',compact('products', 'productType','key_distro'),$data);
 
     }
@@ -298,6 +340,8 @@ $jsonResult = json_encode([$todaysOrders, $agents,$kds]);
         $products->catagory_id = $request->catagory;
         $products->productType_id = $request->adminproductType;
         $products->save();
+        LogActivity::addToLog('Product List update store');
+
         Alert::toast('Product Updated Successfully', 'success');
         return redirect('/admin/view/productlist');
     }
@@ -337,25 +381,36 @@ $jsonResult = json_encode([$todaysOrders, $agents,$kds]);
         $products->catagory_id = $request->catagory;
         $products->productType_id = $request->adminproductType;
         $products->save();
+        LogActivity::addToLog('Product Edit Store');
         Alert::toast('Product Updated Successfully', 'success');
         return redirect('/admin/view/product');
     }
     public function delete_productlist($id)
     {
         $products = ProductList::find($id);
-        $products->delete();
+        //$products->delete();
+          $products->Qty = 0;
+          $products->save();
+        LogActivity::addToLog('Delete Product List');
+
         Alert::toast('Product Deleted Successfully', 'success');
         return redirect('/admin/view/productlist');
     }
     public function delete_product($id)
     {
         $products = product::find($id);
-        $products->delete();
+       // $products->delete();
+         $products->Qty = 0;
+          $products->save();
+        LogActivity::addToLog('Delete Product');
+
         Alert::toast('Product Deleted Successfully', 'success');
         return redirect('/admin/view/product');
     }
     public function add_catagory()
     {
+        LogActivity::addToLog('View add category');
+
         return view('admin.addCatagories');
     }
      public function store_catagory(Request $request)
@@ -373,6 +428,8 @@ $jsonResult = json_encode([$todaysOrders, $agents,$kds]);
         $product_catagories->image = $imagename;
         $product_catagories->description = $request->description;
         $product_catagories->save();
+        LogActivity::addToLog('Store category');
+
         Alert::toast('Catagory Added Successfully', 'success');
          return redirect('/admin/view/catagory');
     }
@@ -380,12 +437,16 @@ $jsonResult = json_encode([$todaysOrders, $agents,$kds]);
     public function view_catagory()
     {
         $product_catagories= ProductCatagory::all();
+        LogActivity::addToLog('View category');
+
         return view('admin.viewCatagories',compact('product_catagories'));
 
     }
     public function edit_productCatagory($id)
     {
         $product_catagories = ProductCatagory::find($id);
+        LogActivity::addToLog('Edit Product View');
+
         return view('admin.editCatagory',compact('product_catagories'));
 
     }
@@ -416,6 +477,8 @@ $jsonResult = json_encode([$todaysOrders, $agents,$kds]);
 
 
         $product_catagories->save();
+        LogActivity::addToLog('edit category store');
+
         Alert::toast('Catagory Updated Successfully', 'success');
         return redirect('/admin/view/catagory');
     }
@@ -426,11 +489,15 @@ $jsonResult = json_encode([$todaysOrders, $agents,$kds]);
         if ($products > 0) {
             // return redirect('/admin/view/catagory')
             //     ->with('message', 'Something went wrong');
+           LogActivity::addToLog('Delete Cataegory failed');
+
             Alert::toast('Catagory can not be deleted', 'error');
             return redirect('/admin/view/catagory');
         } else {
             $product_catagories = ProductCatagory::find($id);
             $product_catagories->delete();
+        LogActivity::addToLog('Delete Catagory ');
+
             Alert::toast('Catagory Deleted ', 'success');
             return redirect('/admin/view/catagory');
         }
@@ -446,7 +513,7 @@ $jsonResult = json_encode([$todaysOrders, $agents,$kds]);
     {
         // $key_distro = key_distro::join('users','users.id','=','key_distros.user_id')->get();
         $catagory = ProductCatagory::all();
-
+        LogActivity::addToLog('Add product type view');
         return view('admin.addProductTypes',compact('catagory'));
     }
 
@@ -464,6 +531,7 @@ $jsonResult = json_encode([$todaysOrders, $agents,$kds]);
         $product_types->description = $request->description;
         $product_types->catagory_id = $request->catagory;
         $product_types->save();
+        LogActivity::addToLog('Add product type store');
         Alert::toast('Product Type Added Successfully', 'success');
         return redirect('/admin/view/ProductType');
     }
@@ -479,6 +547,8 @@ $jsonResult = json_encode([$todaysOrders, $agents,$kds]);
     {
         $product_types = ProductType::find($id);
         $catagory = ProductCatagory::all();
+        LogActivity::addToLog('Edit product type view');
+
         return view('admin.editProductType',compact('catagory','product_types'));
 
     }
@@ -494,6 +564,8 @@ $jsonResult = json_encode([$todaysOrders, $agents,$kds]);
         $product_types->description = $request->description;
         $product_types->catagory_id = $request->catagory;
         $product_types->save();
+        LogActivity::addToLog('Edit product type store');
+
         Alert::toast('Product Type Updated Successfully', 'success');
         return redirect('/admin/view/ProductType');
     }
@@ -508,6 +580,8 @@ $jsonResult = json_encode([$todaysOrders, $agents,$kds]);
         if ($product > 0) {
             // return redirect('/admin/view/catagory')
             //     ->with('message', 'Something went wrong');
+        LogActivity::addToLog('Delete product type failed');
+
             Alert::toast('product type can not be deleted ', 'error');
             return redirect('/admin/view/ProductType');
         } else {
@@ -516,6 +590,8 @@ $jsonResult = json_encode([$todaysOrders, $agents,$kds]);
             $product_types->delete();
             // $product_catagories = ProductCatagory::find($id);
             // $product_catagories->delete();
+        LogActivity::addToLog('Delete product type');
+
             Alert::toast('Product Deleted ', 'success');
             return redirect('/admin/view/ProductType');
         }
@@ -542,8 +618,41 @@ $jsonResult = json_encode([$todaysOrders, $agents,$kds]);
         $user = user::find($request->user_id);
             $user->status = $request->status;
             $user->save();
+        LogActivity::addToLog('Change Status of user');
 
             return response()->json(['success'=>'Status change successfully.']);
+    }
+
+     public function changeorderStatus(Request $request)
+    {
+
+        
+        $city = cities::find($request->user_id);
+        
+        if($city->order_status==1)
+        {
+         
+             return response()->json(['success'=>'Already Started.']);
+        }
+        else
+        {
+           $city->order_status = $request->status;
+        $city->save();
+        $region= regions::find($city->region_id);
+         $user = order_statuses::create([
+            'Region' => $region->name,
+            'City'=> $city->name,
+            'startdate'=> now()->toDateTimeString(),
+            'status'=> $request->status
+
+        ]);
+      
+
+        LogActivity::addToLog('Change Status of order');
+            //return response()->json(['success'=>'Status change successfully.']);
+           
+        }
+
     }
 
          public function changeClientStatus(Request $request)
@@ -551,6 +660,7 @@ $jsonResult = json_encode([$todaysOrders, $agents,$kds]);
         $client = user::find($request->client_id);
         $client->status = $request->status;
         $client->save();
+        LogActivity::addToLog('Edit client status');
 
         return response()->json(['success'=>'Status change successfully.']);
     }
@@ -558,6 +668,8 @@ $jsonResult = json_encode([$todaysOrders, $agents,$kds]);
     public function newUserList()
     {
         $userList=user::paginate(100);
+        LogActivity::addToLog('view Users List');
+
         return view('admin.userList',compact('userList'));
     }
 
@@ -568,6 +680,8 @@ $jsonResult = json_encode([$todaysOrders, $agents,$kds]);
         // $productType= ProductType::all();
         // $products = product::find($id);
         // $key_distro = key_distro::join('users','users.id','=','key_distros.user_id')->get();
+        LogActivity::addToLog('Edit user view');
+
         return view('admin.edituser',compact('user'));
 
     }
@@ -604,6 +718,8 @@ $jsonResult = json_encode([$todaysOrders, $agents,$kds]);
 
 
              $user->save();
+        LogActivity::addToLog('Edit User Data');
+
             Alert::toast('successfully Registered', 'success');
         return redirect('/user/list');
 
@@ -628,7 +744,8 @@ $jsonResult = json_encode([$todaysOrders, $agents,$kds]);
           $agent_se = agent::join('users','users.id','=','agents.user_id')
           ->where('users.id',$agent)
           ->get();
-         
+        LogActivity::addToLog('Edit client view');
+
         return view('admin.editclient',compact('user','key_distro','key_all','businessType','idType','agents','agent_se'));
     }
     public function edited_client_store(Request $request,$id)
@@ -725,6 +842,8 @@ $jsonResult = json_encode([$todaysOrders, $agents,$kds]);
         $user->userName = $request->userName;
 
              $user->save();
+        LogActivity::addToLog('Client Edit store');
+
             Alert::toast('successfully Registered', 'success');
         return redirect('/admin/view/clients');
 
@@ -736,10 +855,12 @@ $jsonResult = json_encode([$todaysOrders, $agents,$kds]);
 
     public function delete_user($id)
     {
-        //$users = User::find($id);
+        $users = User::find($id);
+
         //$users->delete();
-        //Alert::toast('User Deleted Successfully', 'success');
+        Alert::toast('User Deleted Successfully', 'success');
         // return redirect('/admin/view/users');
+        LogActivity::addToLog('User Deleted');
         return redirect()->back();
 
     }
@@ -755,15 +876,21 @@ $jsonResult = json_encode([$todaysOrders, $agents,$kds]);
         $idType= idType::all();
         $key_distro = key_distro::join('users','users.id','=','key_distros.user_id')->get();
         $agents = agent::join('users','users.id','=','agents.user_id')->get();
+        $regions = regions::all(); // Fetch all regions
+        $cities = cities::all();
+      
 
         // $key_distross= key_distro::all();
         // echo  $key_distross;
-        return view('admin.registerClient',compact('businessType','key_distro','idType','agents'));
+        LogActivity::addToLog('Register Client View');
+
+
+        return view('admin.registerClient',compact('businessType','key_distro','idType','agents','regions','cities'));
     }
 
     public function store_client(Request $request)
     {
- $data = client::orderBy('id','asc')->first();
+         $data = client::orderBy('id','asc')->first();
         // dd($data);
         $client_unique_id = 'CL'.rand(10000, 99999);
  //$client_unique_id = general::IDGenerator_client(new client, 'client_unique_id', 5, 'CL',$data);
@@ -892,10 +1019,11 @@ $jsonResult = json_encode([$todaysOrders, $agents,$kds]);
             ]);
 
         Alert::toast('Successfully Registered', 'success');
+        LogActivity::addToLog('Register Client Store');
         return redirect('/admin/view/clients');
 
         }
-         }
+        }
 
     public function generateUniqueCode()
     {
@@ -909,9 +1037,66 @@ $jsonResult = json_encode([$todaysOrders, $agents,$kds]);
     {
         $idType= idType::all();
         $key_distro = key_distro::join('users','users.id','=','key_distros.user_id')->get();
+         LogActivity::addToLog('Register TM view');
         return view('admin.registerTM',compact('idType','key_distro'));
     }
 
+    public function create_facilator()
+    {
+        $idType= idType::all();
+        $key_distro = key_distro::join('users','users.id','=','key_distros.user_id')->get();
+        LogActivity::addToLog('Register Facilitator View');
+        return view('admin.registerfacilator',compact('idType','key_distro'));
+    }
+
+
+
+ public function store_facilator(Request $request){
+        $request->validate([
+            'firstName' => ['required', 'alpha', 'max:255'],
+            'middleName' => ['required', 'alpha', 'max:255'],
+            'lastName' => ['required', 'alpha', 'max:255'],
+            'userName' => ['required', 'string', 'max:255','unique:users'],
+            // 'password' => ['required', 'string', 'min:6', 'confirmed'],
+            'address' =>'required',
+            'mobile' =>'required|digits:10',
+            'id_path'=>'required|image|mimes:jpg,png,jpeg|max:5048',
+            'idType' =>'required',
+            'ID_number' =>'required',
+            'ID_issue_date' =>'required|date|before:today',
+            'ID_expiry_date' =>'required|date|after:today',
+            'profilePicture' => 'required|image|mimes:jpg,png,jpeg|max:5048'
+        ]);
+        $user_type="facilitator";
+
+          $user_pro  = $request->profilePicture;
+
+       $user_proName = time() . '.' . $user_pro->getClientOriginalExtension();
+        $user_pro->move('assets/users_img',$user_proName);
+        $user = user::create([
+            'firstName'=>$request->firstName,
+            'middleName'=>$request->middleName,
+            'lastName'=> $request->lastName,
+            'userName'=> $request->userName,
+            'userType' => $user_type,
+            'userPhoto' => $user_proName,
+
+            'password'=>Hash::make($request['password']),
+            'userType'=>$user_type,
+            'status'=>$request->status,
+        ]);
+ $tm_id = time().'.'.$request->id_path->extension();
+
+$request->id_path->move('assets/gov_img', $tm_id);
+
+// $path = 'assets/gov_img'.$tm_id;
+
+         LogActivity::addToLog('Register Facilitator Store');
+        Alert::toast('successfully Registered', 'success');
+
+        return redirect('/user/list');
+
+    }
 
 
     public function store_tm(Request $request){
@@ -970,6 +1155,8 @@ $request->id_path->move('assets/gov_img', $tm_id);
         $kdupdate = key_distro::where('user_id',$request->kd_id)
         ->update(['has_tm'=>'1']);
 
+         LogActivity::addToLog('Register tm Store');
+
         Alert::toast('successfully Registered', 'success');
         return redirect('/user/list');
 
@@ -978,6 +1165,7 @@ $request->id_path->move('assets/gov_img', $tm_id);
 
     public function create_user()
     {
+         LogActivity::addToLog('Register user view');
         return view('admin.registerUser');
     }
     public function store_user(Request $request){
@@ -1003,21 +1191,53 @@ $request->id_path->move('assets/gov_img', $tm_id);
             'userType'=>$request->userType,
             'status'=>$request->status,
         ]);
+         LogActivity::addToLog('Register User Store');
         Alert::toast('successfully Registered', 'success');
         return redirect('/user/list');
+//
     }
-    public function view_clients()
-    {
-        $client = client::join('users','users.id', '=','clients.user_id')
+    // public function view_clients()
+    // {
+    //     $client = client::join('users','users.id', '=','clients.user_id')
 
-        ->paginate(1000000);
+    //     ->paginate(100);
+    //     $key_distro=key_distro::join('users','users.id','=','key_distros.user_id')
+    //     ->join('clients','clients.distro_id','=','key_distros.user_id')
+    //     ->get();
+    //     LogActivity::addToLog('view clients');
+    //     return view('admin.showClients',compact('client','key_distro'));
 
-        $key_distro=key_distro::join('users','users.id','=','key_distros.user_id')
-        ->join('clients','clients.distro_id','=','key_distros.user_id')
-        ->get();
-        return view('admin.showClients',compact('client','key_distro'));
+    // }
+    public function view_clients(Request $request)
+{
+    $search = $request->input('search');
+    $client = client::join('users', 'users.id', '=', 'clients.user_id');
 
+    if (!empty($search)) {
+        $client = $client->where(function ($query) use ($search) {
+            $query->where('users.firstName', 'like', "%$search%")
+                ->orWhere('users.middleName', 'like', "%$search%")
+                ->orWhere('users.lastName', 'like', "%$search%")
+                ->orWhere('users.userName', 'like', "%$search%")
+                ->orWhere('users.status', 'like', "%$search%")
+                ->orWhere('clients.distro_id', 'like', "%$search%")
+                ->orWhere('clients.Region', 'like', "%$search%")
+                ->orWhere('clients.client_unique_id', 'like', "%$search%")
+                ->orWhere('clients.City', 'like', "%$search%");
+        });
     }
+
+    $client = $client->paginate(10);
+    if ($request->ajax()) {
+        LogActivity::addToLog('view clients');
+    return response()->json($client);
+} else {
+    LogActivity::addToLog('view clients');
+    return view('admin.showClients', compact('client'));
+}
+
+
+}
      public function Qrgenerator($id)
     {
 		    $result=0;
@@ -1035,9 +1255,13 @@ $request->id_path->move('assets/gov_img', $tm_id);
 		                $client->update();
 		                $result=1;
 		      	     }
+        LogActivity::addToLog('Generate Qrcode');
+
         return view('admin.show_client', compact('client','user'));
         }else
         {
+            LogActivity::addToLog('Qr generator error');
+
             return redirect()->back()->with('error', 'QR Generator Error.');
        }
     }
@@ -1101,5 +1325,110 @@ $request->id_path->move('assets/gov_img', $tm_id);
         return view('admin.undeliveredDetails',compact('deliveredProducts'));
 
     }
+    public function add_region(Request $request)
+    {
+        $regions = regions::all();
+        LogActivity::addToLog('Add Regions');
+        return view('admin.addRegions',compact('regions'));
+    }
+     public function store_region(Request $request)
+    {
+       $request->validate([
+            'name' => 'required|max:255',
+        ]);
+        $region = new regions;
+        $region->name = $request->name;
+        $region->save();
+        LogActivity::addToLog('Store region');
+
+        Alert::toast('Regions Added Successfully', 'success');
+         return redirect('/admin/view/Region');
+    }
+    public function view_region()
+    {
+        $client = regions::all();
+        LogActivity::addToLog('view regions');
+        return view('admin.showRegion',compact('client'));
+    }
+   public function edit_region($id)
+   {
+     $region = regions::find($id);
+        LogActivity::addToLog('Edit Regions');
+
+        return view('admin.editRegion',compact('region'));
+   }
+  public function edited_region_store(Request $request,$id)
+  {
+        $request->validate([
+            'name' => 'required|max:255',
+        ]);
+         $regions = regions::find($id);
+
+        $regions->name = $request->name;
+        $regions->save();
+        LogActivity::addToLog('Store Region edit');
+        Alert::toast('Region Edited Successfully', 'success');
+         return redirect('/admin/view/Region');
+  }
+
+  public function add_city(Request $request)
+    {
+        $city = cities::all();
+        $region =regions::all();
+        LogActivity::addToLog('Add cities');
+        return view('admin.addCity',compact('city','region'));
+    }
+    public function store_city(Request $request)
+    {
+       $request->validate([
+            'name' => 'required|max:255',
+             'region_id' => 'required|max:255',
+        ]);
+        $city = new cities;
+        $city->name = $request->name;
+        $city->region_id = $request->region_id;
+        $city->save();
+        LogActivity::addToLog('Store city');
+
+        Alert::toast('City Added Successfully', 'success');
+         return redirect('/admin/view/City');
+    }
+    public function view_city()
+    {
+        $city = cities::join('regions','regions.id','=','cities.region_id')
+        ->get(['regions.name as region','cities.*']);
+        LogActivity::addToLog('view city');
+
+        return view('admin.showCity',compact('city'));
+    }
+   public function edit_city($id)
+   {
+     $city = cities::join('regions','regions.id','=','cities.region_id')
+        ->where('cities.id','=',$id)
+        ->get(['regions.name as region','cities.*','regions.id as region_id']);
+         $region =regions::all();
+        LogActivity::addToLog('Edit city');
+
+        return view('admin.editcity',compact('city','region'));
+   }
+  public function edited_city_store(Request $request,$id)
+  {
+
+        $request->validate([
+            'name' => 'required|max:255',
+            'region_id' => 'required|max:255',
+        ]);
+
+
+         $city = cities::find($id);
+        $city->name = $request->name;
+        $city->region_id = $request->region_id;
+        $city->save();
+        LogActivity::addToLog('Store city edit');
+        Alert::toast('city Edited Successfully', 'success');
+         return redirect('/admin/view/City');
+  }
+
+
 
 }

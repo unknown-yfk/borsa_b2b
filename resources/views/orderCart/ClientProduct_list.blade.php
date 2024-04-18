@@ -89,11 +89,10 @@
                                         <input type="hidden" value="{{ $product->price }}" name="price">
                                         <input type="hidden" value="{{ $product->description }}" name="description">
                                         <input type="hidden" value="{{ $product->image }}" name="image">
-                                          <input type="hidden" value="{{ $product->min_order }} " name="min">
+                                         <input type="hidden" value="{{ $product->min_order }} " name="min">
                                         <input type="hidden" value="{{ $product->max_order }} " name="max">
                                         <input type="hidden" value="{{ $product->Qty }} " name="Qty">
-
-
+                                         <input type="hidden" value="{{ $user_id}} " name="client_id">
                                         <label class="mt-2 ml-4 text-gray-500"><strong>Quantity:</strong></label>
                                         {{-- <input  type="number" name="quantity" id ="quantity" min="1" max="{{ $product->Qty}}" class="form form-control @error('quantity') is-invalid @enderror" placeholder="Qty" required> --}}
                                         <div class="def-number-input number-input safari_only ml-4">

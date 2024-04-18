@@ -8,6 +8,7 @@ use Auth;
 use App\Models\orderedProducts;
 // use App\Models\product;
 use App\Models\order;
+use App\Models\Loans;
 // use App\Models\client;
 // use App\Models\user;
 // use RealRashid\SweetAlert\Facades\Alert;
@@ -21,7 +22,10 @@ use App\Models\client;
 use App\Models\ProductCatagory;
 use App\Models\ProductType;
 use App\Models\Handover_hierarchy;
+use App\Models\cities;
+use Carbon\Carbon;
 
+use App\Models\order_statuses;
 
 // use Illuminate\Http\Request;
 use RealRashid\SweetAlert\Facades\Alert;
@@ -64,10 +68,9 @@ class CartController extends Controller
         ->where('agent_id',$id)
         ->get();
         $kd_name = client::join('users','users.id','=','clients.distro_id')
-                  
-                ->where('client_unique_id', $client_unique_id)
-                 ->where('clients.agent_id',$id)
-              ->get(['firstName','middleName','lastName']);
+         ->where('client_unique_id', $client_unique_id)
+          ->where('clients.agent_id',$id)
+         ->get(['firstName','middleName','lastName']);
         //   echo count($client_name);
 
 
@@ -78,7 +81,24 @@ class CartController extends Controller
             }
             elseif( $client_name[0]->client_unique_id == $request-> client_unique_id)
              {
-            return view('agent.client_info_display', compact('clients','client_name','kd_name'));
+             $loan = Loans::join('users','users.id','=','loans.client_id')
+                   ->join('clients','clients.user_id','=','loans.client_id')
+                   ->where('loans.client_id',$client_name[0]->user_id)
+                   ->where('loans.status','pending')
+                   ->where('loans.remaining_amount','>',0)
+                   ->get();
+              if (count($loan) === 0)
+              {
+                 return view('agent.client_info_display', compact('clients','client_name','kd_name'));
+              }
+              else
+              {
+                 Alert::toast('You Have Unpaid Loan', 'warning');
+
+                return redirect()->back();
+              }
+
+
             }
     }
 
@@ -88,14 +108,26 @@ class CartController extends Controller
      public function ProductCatagoryList(Request $request)
     {
 
-        $cli_id= $request->clients_user_id;
-       $productsCatagories = ProductCatagory::join('products','products.catagory_id','=','product_catagories.id')
-        ->join('key_distros','key_distros.user_id','=','products.KD_ID')
-        ->join('clients','clients.distro_id','=','key_distros.user_id')
-        ->where('clients.user_id',$cli_id)
-        ->distinct()
-        ->get(['product_catagories.*']);
-        return view('orderCart.product_catagory_list', compact('productsCatagories','cli_id'));
+        $cli_id = $request->clients_user_id;
+$city = Client::where('user_id', $cli_id)->first();
+
+if ($city && isset($city->City)) {
+    $status = cities::where('name', $city->City)->first();
+
+    if ($status && $status->order_status == 1) {
+        $productsCatagories = ProductCatagory::join('products', 'products.catagory_id', '=', 'product_catagories.id')
+            ->join('key_distros', 'key_distros.user_id', '=', 'products.KD_ID')
+            ->join('clients', 'clients.distro_id', '=', 'key_distros.user_id')
+            ->where('clients.user_id', $cli_id)
+            ->distinct()
+            ->get(['product_catagories.*']);
+        return view('orderCart.product_catagory_list', compact('productsCatagories', 'cli_id'));
+    } else {
+        Alert::toast('You Cannot Order Now', 'error');
+        return redirect('/filter_client_id');
+    }
+}
+
     }
     public function productList(Request $request,$id,$cli_id)
     {
@@ -107,9 +139,9 @@ class CartController extends Controller
         ->get(['products.*','productlist.min_order','productlist.max_order']);
         $productType = ProductType::where('catagory_id',$id)->get();
 
-           
 
-      return view('orderCart.productList', compact('products','productType'));  
+
+      return view('orderCart.productList', compact('products','productType','cli_id'));
     }
 
 
@@ -141,7 +173,7 @@ class CartController extends Controller
         $id=Auth::id();
         $client_unique_id =$request->client_unique_id ;
         $client_name = client::where('client_unique_id', $client_unique_id)
-       ->where('agent_id', $id)
+        ->where('agent_id', $id)
         ->get();
         $hierarchy = Handover_hierarchy::where('status','1')->get();
         // echo $client_unique_id;
@@ -179,7 +211,7 @@ if (count($clients) === 0) {
             }
             else {
 
-                     $client_unique_id =$request->client_unique_id ;
+        $client_unique_id =$request->client_unique_id ;
         $client_name = client::where('client_unique_id', $client_unique_id)->get();
         $hierarchy = Handover_hierarchy::where('status','1')->get();
         // echo $client_unique_id;
@@ -189,6 +221,8 @@ if (count($clients) === 0) {
         ->where('agent_id', $id)
         ->get(['firstName','middleName','lastName','clients.user_id','distro_id','clients.pinCode']);
         $cartItems = \Cart::getContent();
+
+
 
 
        return view('agent.fetch-client_id', compact('cartItems','clients','hierarchy','client_name'));
@@ -259,23 +293,62 @@ public function client_order_details(Request $request)
 
 public function addToCart(Request $request)
     {
-        $validator = $request->validate([
+
+         $validator = $request->validate([
             'quantity' => 'required'
 
         ]);
 
+
       $quantity=\Cart::get($request->id);
-              if(!$quantity)
+
+     if(!$quantity)
      {
         $quantity=0;
         $new_quantity=$quantity+$request->quantity;
      }
-     else 
+     else
      {
         $new_quantity=$quantity->quantity+$request->quantity;
      }
+        $city = client::where('user_id',$request->client_id)
+        ->get('clients.City');
+        $order_status=cities::where('name','=',$city[0]->City)
+        ->get();
 
-        if($new_quantity > $request->max)
+        $order_statuses=order_statuses::where('City','=',$city[0]->City)
+        ->where('status','=',1)
+        ->whereNull('enddate')
+        ->get();
+
+
+        if($order_status[0]->order_status==1)
+        {
+
+             $start_date=$order_statuses[0]->startdate;
+              $start_date = Carbon::parse($start_date);
+
+        $start_date = $start_date->format('Y-m-d');
+
+            $prduct_found=OrderedProducts::join('orders','orders.id','=','ordered_products.order_id')
+            ->where('orders.client_id','=',$request->client_id)
+            ->where('ordered_products.product_id','=',$request->id)
+            ->where('orders.createdDate','>=',$start_date)
+            ->get(['ordered_products.id','ordered_products.ordered_quantity','ordered_products.subTotal','orders.id as order_id','orders.totalPrice' ]);
+             if($prduct_found->count() > 0)
+            {
+               $new_quanity_formax=$prduct_found[0]->ordered_quantity+$request->quantity;
+                Alert::toast('You Have ordered This quantity Before', 'success');
+
+                if($new_quanity_formax > $request->max)
+        {
+            Alert::toast('You Have Reached Maximum Order Try Again', 'error');
+            return back();
+        }
+
+            }
+
+            if($new_quantity > $request->max )
         {
             Alert::toast('You Have Reached Maximum Order Try Again', 'error');
             return back();
@@ -285,7 +358,6 @@ public function addToCart(Request $request)
             Alert::toast('Product Quantity Is Greater Than Available Quantity Try Again', 'error');
             return back();
         }
-        
         else
         {
         \Cart::add([
@@ -294,14 +366,25 @@ public function addToCart(Request $request)
             'price' => $request->price,
             'quantity' => $request->quantity,
             'attributes' => array(
-                'image' => $request->image,
-           'subtotal'=>$request->price*$request->quantity,
-        'description'=>$request->description,
+            'image' => $request->image,
+            'subtotal'=>$request->price*$request->quantity,
+            'description'=>$request->description,
          )
         ]);
         Alert::toast('Product Added to Cart', 'success');
         return back();
     }
+
+        }
+        else
+        {
+            Alert::toast('You Cannot Order Now', 'error');
+        return back();
+        }
+
+
+
+
     }
     public function updateCart(Request $request)
     {
@@ -398,6 +481,7 @@ $orderupdate = order::where('id', $request->order_id)
 // //         $p->subTotal = $p->kd_quantity_adjustment * $p->price;
 // //     }
 // }
+        LogActivity::addToLog('order accept');
 
 Alert::toast('Order Accepted', 'success');
     //  return view('dashboard.agentDashboard');
@@ -413,6 +497,8 @@ Alert::toast('Order Accepted', 'success');
           $orderupdate = order::where('id',$request->order_id)
             ->update(['confirmStatus'=>'declined']);
     //  return view('agent.');""
+        LogActivity::addToLog('decline');
+
         Alert::toast('Order Declined', 'success');
 
      return redirect ('/agentDashboard');

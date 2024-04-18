@@ -15,9 +15,9 @@
             <nav class="p-6 mt-4 text-white sm:flex sm:justify-center sm:items-center"
                 style="background-color: #123C69; color:white">
                 <div class="flex flex-col sm:flex-row">
-                    <a class="mt-3 mr-3" href="javascript:javascript:history.go(-1)"
+                    <a class="mt-3 mr-3" href="javascript:javascript:history.go(-2)"
                         style="color: white"><strong>Shop</strong></a>
-                    <a class="mt-3 mr-3" href="javascript:javascript:history.go(-1)" style="color: white"><strong>Catagories</strong></a>
+                    <a class="mt-3 mr-3" href="javascript:javascript:history.go(-2)" style="color: white"><strong>Catagories</strong></a>
                     <a href="{{ route('cart.list') }}" class="flex items-center mt-3 mr-3" style="color: white">
                         <svg class="w-6 h-6" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             viewBox="0 0 24 24" stroke="currentColor">
@@ -105,6 +105,9 @@
                                         <input type="hidden" value="{{ $product->Qty }} " name="Qty">
                                         <input type="hidden" value="{{ $product->min_order }} " name="min">
                                         <input type="hidden" value="{{ $product->max_order }} " name="max">
+                                        <input type="hidden" value="{{ $cli_id}} " name="client_id">
+
+
                                         <label class="mt-2 ml-4 text-gray-500"><strong>Quantity:</strong></label>
                                         {{-- <input  type="number" name="quantity" id ="quantity" min="{{ $product->min_order }}" max="{{ $product->max_order }}" class="form form-control @error('quantity') is-invalid @enderror" placeholder="Qty" required> --}}
                                         <div class="def-number-input number-input safari_only ml-4">

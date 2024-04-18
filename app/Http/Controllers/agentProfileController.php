@@ -21,7 +21,7 @@ use Illuminate\Support\Facades\Hash;
 use RealRashid\SweetAlert\Facades\Alert;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Validator;
-
+use App\Helpers\LogActivity;
 
 class agentProfileController extends Controller
 {
@@ -265,6 +265,8 @@ class agentProfileController extends Controller
             'tinNumber'=> $request->tinNumber,
             'businessEstablishmentYear'=> $request->businessEstablishmentYear,
         ]);
+        LogActivity::addToLog('Update Profile');
+
         Alert::toast('Successfully Updated!', 'success');
         return redirect()->route('agent.dashboard');
 
@@ -294,6 +296,7 @@ class agentProfileController extends Controller
         //     'password' => Hash::make($request->password),
         // ];
         // $user->update($credentials);
+        LogActivity::addToLog('Change Password');
 
         Alert::toast('Password Changed Successfuly!', 'success');
          return redirect()->route('agent.dashboard');

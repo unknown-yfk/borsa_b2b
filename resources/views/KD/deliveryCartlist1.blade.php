@@ -1,31 +1,26 @@
-@include('layout.header')
-<style>
-#footer {
-   position: fixed !important;
-   bottom: 0 !important;
-   width: 100% !important;
-   height: 4rem !important;   /* Height of the footer */
-}
-</style>
-<body class="sb-nav-fixed">
-        @include('nav.kd_navbar')
-    <div id="layoutSidenav">
-            @include('Sidenavbar.kdSidebar')
-            <div id="layoutSidenav_content">
-            <main>
-                @extends('layout.deliverHeader')
-                @section('content')
-                @include('sweetalert::alert')
-                    <div class="container px-3 my-5 clearfix">
-                        <!-- Shopping cart table -->
-                        <div class="card">
-                            <div class="card-header">
-                                <h1>Delivery Cart List </h1>
-                            </div>
-                    <div class="card-body">
-                        <div class="table-responsive">
-                          <table class="table table-bordered m-0">
-                            <thead>
+@extends('layouts.mainlayout')
+@section('content')
+
+  <div class="main-panel">
+        <div class="content-wrapper">
+
+
+
+
+ <div class="col-lg-12 grid-margin stretch-card">
+              <div class="card">
+                <div class="card-body">
+                  <h4 class="card-title">Delivery list</h4>
+
+                  <p class="card-description">
+                  <code>List of products to be delivered</code>
+                  </p>
+                  <input id="myInput" type="text" placeholder="Search orders here..">
+                  <div class="table-responsive pt-3">
+                                {{-- <table id="datatable" class="table"> --}}
+                                       <table id="recent-purchases-listing" class="table">
+                                    <thead>
+
                               <tr>
                                 <!-- Set columns width -->
                                 <th class="text-center py-3 px-4" style="min-width: 400px;">Product Name &amp; Details</th>
@@ -122,10 +117,4 @@
           </div>
       </div>
   </div>
-</main>
-</div>
-    @include('layout.footer')
-</div>
-    @endsection
-</body>
-</html>
+ @endsection

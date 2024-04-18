@@ -18,7 +18,7 @@
                                             <label>{{ __('messages.ProductName') }}</label>
                                             <div class="col-sm-9">
                                                 <input type="text" id="name" name="name"
-                                                    class="form-control"required>
+                                                    class="form-control" required>
                                                 @error('name')
                                                     <span class="invalid-feedback" role="alert">
                                                         <strong>{{ $message }}</strong>

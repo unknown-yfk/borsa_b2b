@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\tm;
+use App\Models\Handover_hierarchy;
+use App\Models\rom;
 use App\Models\user;
 use App\Models\agent;
 use App\Models\order;
@@ -11,11 +13,19 @@ use App\Models\client;
 use App\Models\product;
 use Illuminate\Http\Request;
 use App\Models\orderedProducts;
+use App\Models\delivery1;
 
 use Illuminate\Support\Facades\Auth;
 use Darryldecode\Cart\CartCollection;
 use App\Http\Controllers\CartController;
 use RealRashid\SweetAlert\Facades\Alert;
+use App\Helpers\LogActivity;
+use Illuminate\Support\Facades\DB;
+use App\Models\cities;
+use App\Models\order_statuses;
+use App\Models\order_details;
+use Carbon\Carbon;
+
 
 class orderedProductsController extends Controller
 {
@@ -47,12 +57,12 @@ class orderedProductsController extends Controller
         elseif (auth()->user()->userType==='client') {
         $client = order::join('users','users.id','=','orders.client_id')
             ->join('clients','clients.user_id','=','orders.client_id')
-            ->where('orders.createdBy',auth()->user()->id)
+            ->where('orders.client_id',auth()->user()->id)
             ->orderBy('created_at', 'DESC')->get(['users.firstName','users.middleName','users.lastName','orders.id','orders.createdDate','orders.KD_id','orders.*']);
 
         $kd = order::join('users','users.id','=','orders.KD_id')->
         join('key_distros','key_distros.user_id','=','orders.KD_id')
-        ->where('orders.createdBy',auth()->user()->id)->get();
+        ->where('orders.client_id',auth()->user()->id)->get();
 
         return view('client.showOrders',compact('client','kd'));
         }
@@ -73,67 +83,183 @@ class orderedProductsController extends Controller
         // }
 
     }
-    public function kdView()
+    public function kdView(Request $request)
     {
-        $client=order::join('users','users.id','=','orders.client_id')
-        ->join('clients','clients.user_id','=','orders.client_id')
-        ->where('orders.KD_id',auth()->user()->id)
-        ->where('orders.confirmStatus','confirmed')
-        ->where('orders.rom_order_confirmation','confirmed')
-        ->where('orders.rom_adjusted_confirmation','confirmed')
-         ->where('orders.tm_confirmation','unconfirmed')
-        ->orderBy('created_at', 'DESC')->get(['users.firstName','users.middleName'
-        ,'users.lastName','orders.*']);
-        $unconfirmed=count($client);
-        // echo $client;
-        return view('KD.showOrders',compact('client'));
+            $fromDate = $request->input('from_date');
+            $toDate = $request->input('to_date');
+            $regionFilters = $request->input('region_filter');
+            $cityFilters = $request->input('city_filter');
+
+            $uniqueRegions = client::distinct()->pluck('Region')->toArray();
+            $uniqueCities = [];
+
+            $client = Order::select(
+                    'users.firstName',
+                    'users.middleName',
+                    'users.lastName',
+                    'orders.totalPrice',
+                    'orders.created_at',
+                    'orders.id',
+                    'orders.rom_id',
+                    'clients.City',
+                    'clients.Region',
+                    DB::raw('GROUP_CONCAT(products.productlist_id) AS product_ids'),
+                    DB::raw('GROUP_CONCAT(products.id) AS productt_ids'),
+                    DB::raw('GROUP_CONCAT(products.price) AS product_price'),
+                    DB::raw('GROUP_CONCAT( ordered_products.status) AS status'),
+                    DB::raw('GROUP_CONCAT( ordered_products.subTotal) AS price'),
+                    DB::raw('GROUP_CONCAT(ordered_products.kd_adjusted_quantity) AS kd_adjusted_quantities'),
+                    DB::raw('GROUP_CONCAT(ordered_products.ordered_quantity) AS ordered_quantities'),
+                    DB::raw('GROUP_CONCAT(orders.price_update) AS price_updates'),
+
+                )
+                ->join('users', 'users.id', '=', 'orders.client_id')
+                ->join('clients', 'clients.user_id', '=', 'orders.client_id')
+                ->leftJoin('ordered_products', 'ordered_products.order_id', '=', 'orders.id')
+                ->leftJoin('products', 'products.id', '=', 'ordered_products.product_id')
+                ->where('orders.confirmStatus','confirmed')
+                ->where('orders.KD_id',auth()->user()->id)
+
+                ->where('orders.rom_order_confirmation','confirmed')
+                ->where('orders.rom_adjusted_confirmation','confirmed')
+                ->where('orders.tm_confirmation','unconfirmed')
+                ->groupBy('orders.id','users.firstName',
+                'users.middleName',
+                'users.lastName',
+                'orders.totalPrice',
+                'orders.created_at',
+                'orders.id',
+                'orders.rom_id',
+                'clients.City',
+                'clients.Region',)
+                ->orderBy('orders.created_at', 'DESC');
+
+        if ($fromDate && $toDate) {
+                $client->whereBetween('orders.created_at', [$fromDate, $toDate]);
+            }
+
+
+            if (!$regionFilters) {
+                $uniqueCities = client::distinct()->pluck('City')->toArray();
+            }
+
+            if ($regionFilters) {
+                $client->whereIn('clients.Region', $regionFilters);
+
+
+                $uniqueCities = client::whereIn('Region', $regionFilters)->distinct()->pluck('City')->toArray();
+
+
+                if ($cityFilters) {
+                    $client->whereIn('clients.City', $cityFilters);
+                }
+            } elseif ($cityFilters) {
+                $client->whereIn('clients.City', $cityFilters);
+            }
+
+             $client=$client->get();
+             $new=count($client);
+
+            $product = order::join('ordered_products', 'ordered_products.order_id', '=', 'orders.id')
+                ->join('products', 'products.id', '=', 'ordered_products.product_id')
+                ->join('productlist', 'productlist.id', '=', 'products.productlist_id')
+                ->groupBy('productlist.id', 'productlist.name')
+                ->get(['productlist.name', 'productlist.id']);
+
+        return view('KD.showOrders',compact('product', 'uniqueRegions', 'uniqueCities','client','new'));
     }
 
-        public function tmView()
+        public function tmView(Request $request)
     {
+        $fromDate = $request->input('from_date');
+            $toDate = $request->input('to_date');
+            $regionFilters = $request->input('region_filter');
+            $cityFilters = $request->input('city_filter');
 
          $tm=tm::join('users','users.id','=','tms.user_id')
              ->where('users.id',auth()->user()->id)
              ->get();
 
-     $tmkd_id = $tm[0]->kd_id;
+         $tmkd_id = $tm[0]->kd_id;
+         $uniqueRegions = client::distinct()->pluck('Region')->toArray();
+            $uniqueCities = [];
 
 
-         $client=order::join('users','users.id','=','orders.client_id')
-        ->join('clients','clients.user_id','=','orders.client_id')
+        $client = Order::select(
+                    'users.firstName',
+                    'users.middleName',
+                    'users.lastName',
+                    'orders.totalPrice',
+                    'orders.created_at',
+                    'orders.id',
+                    'orders.rom_id',
+                    'clients.City',
+                    'clients.Region',
+                    DB::raw('GROUP_CONCAT(products.productlist_id) AS product_ids'),
+                    DB::raw('GROUP_CONCAT(products.id) AS productt_ids'),
+                    DB::raw('GROUP_CONCAT(products.price) AS product_price'),
+                    DB::raw('GROUP_CONCAT( ordered_products.status) AS status'),
+                    DB::raw('GROUP_CONCAT( ordered_products.subTotal) AS price'),
+                    DB::raw('GROUP_CONCAT(ordered_products.kd_adjusted_quantity) AS kd_adjusted_quantities'),
+                    DB::raw('GROUP_CONCAT(ordered_products.ordered_quantity) AS ordered_quantities'),
+                    DB::raw('GROUP_CONCAT(orders.price_update) AS price_updates'),
+
+                )
+                ->join('users', 'users.id', '=', 'orders.client_id')
+                ->join('clients', 'clients.user_id', '=', 'orders.client_id')
+                ->leftJoin('ordered_products', 'ordered_products.order_id', '=', 'orders.id')
+                ->leftJoin('products', 'products.id', '=', 'ordered_products.product_id')
+                ->where('orders.confirmStatus','confirmed')
+                ->where('orders.KD_id',$tmkd_id)
+                ->where('ordered_products.status','!=','refusal')
+
+                ->where('orders.rom_order_confirmation','confirmed')
+                ->where('orders.rom_adjusted_confirmation','confirmed')
+                ->where('orders.tm_confirmation','unconfirmed')
+                ->groupBy('orders.id','users.firstName',
+                'users.middleName',
+                'users.lastName',
+                'orders.totalPrice',
+                'orders.created_at',
+                'orders.id',
+                'orders.rom_id',
+                'clients.City',
+                'clients.Region',)
+                ->orderBy('orders.created_at', 'DESC');
+
+        if ($fromDate && $toDate) {
+                $client->whereBetween('orders.created_at', [$fromDate, $toDate]);
+            }
 
 
-//  ->whereIn('orders.KD_id', function($query) {
-//                     $query->select('kd_id')
-//                           ->distinct()
-//                           ->from('tms');
-//                 })
+            if (!$regionFilters) {
+                $uniqueCities = client::distinct()->pluck('City')->toArray();
+            }
+
+            if ($regionFilters) {
+                $client->whereIn('clients.Region', $regionFilters);
 
 
-        ->where('orders.confirmStatus','confirmed')
-        ->where('orders.KD_id',$tmkd_id)
-
-        ->where('orders.rom_order_confirmation','confirmed')
-        ->where('orders.rom_adjusted_confirmation','confirmed')
-         ->where('orders.tm_confirmation','unconfirmed')
-        //  ->where('orders.price_update','0')
-
-        ->orderBy('created_at', 'DESC')->get(['users.firstName','users.middleName'
-        ,'users.lastName','orders.*']);
+                $uniqueCities = client::whereIn('Region', $regionFilters)->distinct()->pluck('City')->toArray();
 
 
-        // echo auth()->user()->tm;
-        $clients=order::join('users','users.id','=','orders.client_id')
-        ->join('clients','clients.user_id','=','orders.client_id')
-        // ->join('tm','tm.user_id','=','orders.client_id')
-        ->where('orders.KD_id',auth()->user()->kd_id)
-        ->where('orders.confirmStatus','confirmed')
-        ->where('orders.rom_order_confirmation','confirmed')
-        ->orderBy('created_at', 'DESC')->get(['users.firstName','users.middleName'
-        ,'users.lastName','orders.*']);
-        $unconfirmed=count($client);
-        //  echo $client;
-        return view('TM.showOrders',compact('client'));
+                if ($cityFilters) {
+                    $client->whereIn('clients.City', $cityFilters);
+                }
+            } elseif ($cityFilters) {
+                $client->whereIn('clients.City', $cityFilters);
+            }
+            $client=$client->get();
+          $new=count($client);
+
+            $product = order::join('ordered_products', 'ordered_products.order_id', '=', 'orders.id')
+                ->join('products', 'products.id', '=', 'ordered_products.product_id')
+                ->join('productlist', 'productlist.id', '=', 'products.productlist_id')
+                ->groupBy('productlist.id', 'productlist.name')
+                ->get(['productlist.name', 'productlist.id']);
+                return view('TM.showOrders',compact( 'product', 'uniqueRegions', 'uniqueCities','client','new'));
+
+
     }
 public function romViewhistory()
     {
@@ -153,41 +279,310 @@ public function romViewhistory()
         // echo $client;
         return view('ROM.showOrdershistory',compact('client','new'));
     }
-        public function romView()
+        public function romView(Request $request)
     {
-       $romId = auth()->id();
-        // $client=order::;
-        $client=order::join('users','users.id','=','orders.client_id')
-        ->join('clients','clients.user_id','=','orders.client_id')
-        // ->where('orders.KD_id',auth()->user()->id)
-        ->where('orders.confirmStatus','unconfirmed')
-        ->where('orders.rom_id',$romId)
+        $fromDate = $request->input('from_date');
+            $toDate = $request->input('to_date');
+            $regionFilters = $request->input('region_filter');
+            $cityFilters = $request->input('city_filter');
 
-        // ->where('orders.rom_order_confirmation','confirmed')
-        ->orderBy('created_at', 'DESC')->get(['users.firstName','users.middleName'
-        ,'users.lastName','orders.*','clients.City','clients.Region']);
-        $new=count($client);        
-        return view('ROM.showOrders',compact('client','new'));
+            $uniqueRegions = client::distinct()->pluck('Region')->toArray();
+            $uniqueCities = [];
+
+            $query = delivery1::join('delivery1_products', 'delivery1_products.delivery1_id', '=', 'delivery1s.id')
+                ->join('products', 'products.id', '=', 'delivery1_products.product_id')
+                ->join('productlist', 'productlist.id', '=', 'products.productlist_id')
+                ->join('orders', 'orders.id', '=', 'delivery1s.order_id')
+                ->join('users', 'users.id', '=', 'orders.client_id')
+                ->join('clients', 'users.id', '=', 'clients.user_id')
+                ->where('users.id', '!=', '5393');
+
+
+
+            $romId = auth()->id();
+
+           $client = Order::select(
+                    'users.firstName',
+                    'users.middleName',
+                    'users.lastName',
+                    'orders.totalPrice',
+                    'orders.created_at',
+                    'orders.id',
+                    'orders.rom_id',
+                    'clients.City',
+                    'clients.Region',
+                    DB::raw('GROUP_CONCAT(products.productlist_id) AS product_ids'),
+                    DB::raw('GROUP_CONCAT(products.id) AS productt_ids'),
+                    DB::raw('GROUP_CONCAT(products.price) AS product_price'),
+                    DB::raw('GROUP_CONCAT( ordered_products.status) AS status'),
+                    DB::raw('GROUP_CONCAT( ordered_products.subTotal) AS price'),
+                    DB::raw('GROUP_CONCAT(ordered_products.ordered_quantity) AS ordered_quantities')
+                )
+                ->join('users', 'users.id', '=', 'orders.client_id')
+                ->join('clients', 'clients.user_id', '=', 'orders.client_id')
+                ->leftJoin('ordered_products', 'ordered_products.order_id', '=', 'orders.id')
+                ->leftJoin('products', 'products.id', '=', 'ordered_products.product_id')
+                ->where('orders.confirmStatus', 'unconfirmed')
+                ->where('orders.rom_id', $romId)
+                ->groupBy('orders.id','users.firstName',
+                'users.middleName',
+                'users.lastName',
+                'orders.totalPrice',
+                'orders.created_at',
+                'orders.id',
+                'orders.rom_id',
+                'clients.City',
+                'clients.Region',)
+                ->orderBy('orders.created_at', 'DESC');
+                   if ($fromDate && $toDate) {
+                $client->whereBetween('orders.created_at', [$fromDate, $toDate]);
+            }
+
+
+            if (!$regionFilters) {
+                $uniqueCities = client::distinct()->pluck('City')->toArray();
+            }
+
+            if ($regionFilters) {
+                $query->whereIn('clients.Region', $regionFilters);
+
+
+                $uniqueCities = client::whereIn('Region', $regionFilters)->distinct()->pluck('City')->toArray();
+
+
+                if ($cityFilters) {
+                    $query->whereIn('clients.City', $cityFilters);
+                }
+            } elseif ($cityFilters) {
+                $query->whereIn('clients.City', $cityFilters);
+            }
+            $client=$client->get();
+          $new=count($client);
+
+            $product = order::join('ordered_products', 'ordered_products.order_id', '=', 'orders.id')
+                ->join('products', 'products.id', '=', 'ordered_products.product_id')
+                ->join('productlist', 'productlist.id', '=', 'products.productlist_id')
+                ->groupBy('productlist.id', 'productlist.name')
+                ->get(['productlist.name', 'productlist.id']);
+
+               // echo $product." ".$client;
+
+
+                return view('ROM.showOrders',compact( 'product', 'uniqueRegions', 'uniqueCities','client','new'));
+
+    }
+    public function BulkEdit(Request $request)
+    {
+
+        $products = $request->input('products');
+
+        foreach ($products as $product) {
+            foreach ($product as $detail) {
+                // Access the inner array details
+                $orderId = $detail['orderId'];
+                $productId = $detail['productId'];
+                $adjusted_quantity = (int)$detail['quantity'];
+                $isSelected = $detail['isSelected'] === 'true' ? true : false;
+                $productAmount= $detail['productAmount'];
+
+                $request->validate([
+                    $adjusted_quantity => 'numeric|min:0|max:' . $productAmount,
+                ]);
+                if($adjusted_quantity == 0 && $adjusted_quantity == null)
+                {
+
+                }
+                // Perform MySQL query using Eloquent
+                $order = Order::find($orderId);
+                if ($order) {
+                    // Update attributes in the orders table
+                    $order->confirmStatus = 'confirmed';
+                    $order->rom_order_confirmation = 'confirmed';
+                    $order->rom_adjusted_confirmation = 'confirmed';
+                    $order->save();
+                }
+
+                $orderedProducts = orderedProducts::where('order_id', $orderId)
+                    ->where('product_id', $productId)
+                    ->get();
+
+
+
+                foreach ($orderedProducts as $orderedProduct) {
+                    // Update attributes in the ordered_products table
+                    if (!$isSelected) {
+                        if ($adjusted_quantity !== null && $adjusted_quantity !== 0)
+                        {
+                            $product = product::where('id', $productId)->first();
+                            if ($product)
+                            {
+                                $product->Qty -= $adjusted_quantity;
+                                $product->save();
+                            }
+                            $orderedProduct->update([
+                                'status' => 'quantity_adjustment', // Replace with the actual value
+                                'kd_adjusted_quantity' => $adjusted_quantity,
+                            ]);
+                        }
+                        elseif ($adjusted_quantity == null &&  $adjusted_quantity == 0)
+                        {
+
+                            $product = product::where('id', $productId)->first();
+                            if ($product)
+                            {
+                                $product->Qty -= $productAmount;
+                                $product->save();
+                            }
+                            $orderedProduct->update([
+                                'status' => 'acceptance',
+                                'kd_adjusted_quantity' => 0,
+                            ]);
+                        }
+                    } else {
+                        $orderedProduct->update([
+                            'status' => 'refusal',
+                            'kd_adjusted_quantity' => 0,
+                        ]);
+                    }
+                }
+            }
+        }
+        return redirect()->route('romShow');
+    }
+    public function orderHistory(Request $request)
+    {
+        $fromDate = $request->input('from_date');
+        $toDate = $request->input('to_date');
+        $regionFilters = $request->input('region_filter');
+        $cityFilters = $request->input('city_filter');
+        $rom_id=$request->input('rom_id');
+
+         $uniqueRegions = client::distinct()->pluck('Region')->toArray();
+        $uniqueCities = [];
+
+     $client = Order::select(
+                    'users.firstName',
+                    'users.middleName',
+                    'users.lastName',
+                    'orders.totalPrice',
+                    'orders.created_at',
+                    'orders.id',
+                    'orders.rom_id',
+                    'clients.City',
+                    'clients.Region',
+                    DB::raw('GROUP_CONCAT(products.productlist_id) AS product_ids'),
+                    DB::raw('GROUP_CONCAT(products.id) AS productt_ids'),
+                    DB::raw('GROUP_CONCAT(products.price) AS product_price'),
+                    DB::raw('GROUP_CONCAT( ordered_products.status) AS status'),
+                    DB::raw('GROUP_CONCAT( ordered_products.subTotal) AS price'),
+                    DB::raw('GROUP_CONCAT(ordered_products.kd_adjusted_quantity) AS kd_adjusted_quantities'),
+                    DB::raw('GROUP_CONCAT(ordered_products.ordered_quantity) AS ordered_quantities'),
+                    DB::raw('GROUP_CONCAT(orders.price_update) AS price_updates'),
+                )
+                ->join('users', 'users.id', '=', 'orders.client_id')
+                ->join('clients', 'clients.user_id', '=', 'orders.client_id')
+                ->leftJoin('ordered_products', 'ordered_products.order_id', '=', 'orders.id')
+                ->leftJoin('products', 'products.id', '=', 'ordered_products.product_id')
+                ->where('orders.confirmStatus','confirmed')
+                ->where('orders.rom_order_confirmation','confirmed')
+                ->where('orders.KD_id',auth()->user()->id)
+                ->where('orders.rom_id', $rom_id)
+                ->where('orders.handoverStatus','unconfirmed')
+                ->where('orders.rom_adjusted_confirmation','confirmed')
+                ->where('orders.tm_confirmation','confirmed')
+                ->groupBy('orders.id','users.firstName',
+                'users.middleName',
+                'users.lastName',
+                'orders.totalPrice',
+                'orders.created_at',
+                'orders.id',
+                'orders.rom_id',
+                'clients.City',
+                'clients.Region',)
+                ->orderBy('orders.created_at', 'DESC');
+
+        if ($fromDate && $toDate) {
+                $client->whereBetween('orders.created_at', [$fromDate, $toDate]);
+            }
+
+
+            if (!$regionFilters) {
+                $uniqueCities = client::distinct()->pluck('City')->toArray();
+            }
+
+            if ($regionFilters) {
+                $client->whereIn('clients.Region', $regionFilters);
+
+
+                $uniqueCities = client::whereIn('Region', $regionFilters)->distinct()->pluck('City')->toArray();
+
+
+                if ($cityFilters) {
+                    $client->whereIn('clients.City', $cityFilters);
+                }
+            } elseif ($cityFilters) {
+                $client->whereIn('clients.City', $cityFilters);
+            }
+            $client=$client->get();
+
+            $new=count($client);
+
+            $product = order::join('ordered_products', 'ordered_products.order_id', '=', 'orders.id')
+                ->join('products', 'products.id', '=', 'ordered_products.product_id')
+                ->join('productlist', 'productlist.id', '=', 'products.productlist_id')
+                ->groupBy('productlist.id', 'productlist.name')
+                ->get(['productlist.name', 'productlist.id']);
+                $hierarchy = Handover_hierarchy::where('status','1')->get();
+
+
+        return view('KD.orderHistory',compact('product', 'uniqueRegions', 'uniqueCities','client','new', 'hierarchy','rom_id'));
+
+
+    }
+    public function searchrom()
+    {
+
+        $user_type=auth()->user()->userType;
+        if($user_type=="key distributor")
+        {
+        $roms=rom::join('users','users.id','=','roms.user_id')
+        ->where('roms.kd_id',auth()->user()->id)->get(['users.firstName','users.middleName','users.lastName','users.id']);
+
+      // dd($agents);
+
+     return view('KD.delivery_search',compact('roms'));
+        }
+        else if($user_type=="TM")
+        {
+            $tm=tm::join('users','users.id','=','tms.user_id')
+             ->where('users.id',auth()->user()->id)
+             ->get();
+
+         $tmkd_id = $tm[0]->kd_id;
+        $roms=rom::join('users','users.id','=','roms.user_id')
+        ->where('roms.kd_id',$tmkd_id)->get(['users.firstName','users.middleName','users.lastName','users.id']);
+
+     return view('TM.delivery_search',compact('roms'));
+        }
+
     }
 
-
-
-    public function orderHistory()
+        public function tm_orderHistory(Request $request)
     {
-        $client= order::join('users','users.id','=','orders.client_id')
-        ->join('clients','clients.user_id','=','orders.client_id')
-        ->where('orders.KD_id',auth()->user()->id)->orderBy('created_at', 'DESC')
-         ->where('orders.confirmStatus','confirmed')
-        ->where('orders.tm_confirmation','confirmed')
-        ->get(['users.firstName','users.middleName'
-        ,'users.lastName','orders.*']);
 
-        return view('KD.orderHistory',compact('client'));
+            $fromDate = $request->input('from_date');
+            $toDate = $request->input('to_date');
+            $regionFilters = $request->input('region_filter');
+            $cityFilters = $request->input('city_filter');
+            $rom_id=$request->input('rom_id');
 
-    }
+         $tm=tm::join('users','users.id','=','tms.user_id')
+             ->where('users.id',auth()->user()->id)
+             ->get();
 
-        public function tm_orderHistory()
-    {
+         $tmkd_id = $tm[0]->kd_id;
+         $uniqueRegions = client::distinct()->pluck('Region')->toArray();
+        $uniqueCities = [];
 
           $tm=tm::join('users','users.id','=','tms.user_id')
              ->where('users.id',auth()->user()->id)
@@ -195,28 +590,83 @@ public function romViewhistory()
 
      $tmkd_id = $tm[0]->kd_id;
 
+     $client = Order::select(
+                    'users.firstName',
+                    'users.middleName',
+                    'users.lastName',
+                    'orders.totalPrice',
+                    'orders.created_at',
+                    'orders.id',
+                    'orders.rom_id',
+                    'clients.City',
+                    'clients.Region',
+                    DB::raw('GROUP_CONCAT(products.productlist_id) AS product_ids'),
+                    DB::raw('GROUP_CONCAT(products.id) AS productt_ids'),
+                    DB::raw('GROUP_CONCAT(products.price) AS product_price'),
+                    DB::raw('GROUP_CONCAT( ordered_products.status) AS status'),
+                    DB::raw('GROUP_CONCAT( ordered_products.subTotal) AS price'),
+                    DB::raw('GROUP_CONCAT(ordered_products.kd_adjusted_quantity) AS kd_adjusted_quantities'),
+                    DB::raw('GROUP_CONCAT(ordered_products.ordered_quantity) AS ordered_quantities'),
+                    DB::raw('GROUP_CONCAT(orders.price_update) AS price_updates'),
+                )
+                ->join('users', 'users.id', '=', 'orders.client_id')
+                ->join('clients', 'clients.user_id', '=', 'orders.client_id')
+                ->leftJoin('ordered_products', 'ordered_products.order_id', '=', 'orders.id')
+                ->leftJoin('products', 'products.id', '=', 'ordered_products.product_id')
+                ->where('orders.confirmStatus','confirmed')
+                ->where('orders.rom_order_confirmation','confirmed')
+                ->where('orders.KD_id',$tmkd_id)
+                ->where('orders.rom_id', $rom_id)
+                ->where('orders.handoverStatus','unconfirmed')
+                ->where('orders.rom_adjusted_confirmation','confirmed')
+                ->where('orders.tm_confirmation','confirmed')
+                ->groupBy('orders.id','users.firstName',
+                'users.middleName',
+                'users.lastName',
+                'orders.totalPrice',
+                'orders.created_at',
+                'orders.id',
+                'orders.rom_id',
+                'clients.City',
+                'clients.Region',)
+                ->orderBy('orders.created_at', 'DESC');
+
+        if ($fromDate && $toDate) {
+                $client->whereBetween('orders.created_at', [$fromDate, $toDate]);
+            }
 
 
-        $client= order::join('users','users.id','=','orders.client_id')
-     ->join('clients','clients.user_id','=','orders.client_id')
-        // ->join('agents', 'orders.rom_id', '=', 'agents.rom_id')
+            if (!$regionFilters) {
+                $uniqueCities = client::distinct()->pluck('City')->toArray();
+            }
 
-//  ->whereIn('orders.KD_id', function($query) {
-//                     $query->select('kd_id')
-//                           ->distinct()
-//                           ->from('tms');
-//                 })
+            if ($regionFilters) {
+                $client->whereIn('clients.Region', $regionFilters);
 
 
-        ->where('orders.confirmStatus','confirmed')
-        ->where('orders.rom_order_confirmation','confirmed')
-        ->where('orders.KD_id',$tmkd_id)
-        ->where('orders.rom_adjusted_confirmation','confirmed')
-         ->where('orders.tm_confirmation','confirmed')
-        ->orderBy('created_at', 'DESC')->get(['users.firstName','users.middleName'
-        ,'users.lastName','orders.*','clients.Region','clients.City']);
+                $uniqueCities = client::whereIn('Region', $regionFilters)->distinct()->pluck('City')->toArray();
 
-        return view('TM.orderHistory',compact('client'));
+
+                if ($cityFilters) {
+                    $client->whereIn('clients.City', $cityFilters);
+                }
+            } elseif ($cityFilters) {
+                $client->whereIn('clients.City', $cityFilters);
+            }
+            $client=$client->get();
+
+
+            $new=count($client);
+
+            $product = order::join('ordered_products', 'ordered_products.order_id', '=', 'orders.id')
+                ->join('products', 'products.id', '=', 'ordered_products.product_id')
+                ->join('productlist', 'productlist.id', '=', 'products.productlist_id')
+                ->groupBy('productlist.id', 'productlist.name')
+                ->get(['productlist.name', 'productlist.id']);
+                $hierarchy = Handover_hierarchy::where('status','1')->get();
+
+
+        return view('TM.orderHistory',compact('product', 'uniqueRegions', 'uniqueCities','client','new', 'hierarchy','rom_id'));
 
     }
 
@@ -247,7 +697,9 @@ public function romViewhistory()
         ->where('orders.rom_adjusted_confirmation','unconfirmed')
 
 
-        ->where('orders.rom_id',auth()->user()->id)->orderBy('created_at', 'DESC')->where('orders.confirmStatus','returned_acceptance')->get(['users.firstName','users.middleName'
+        ->where('orders.rom_id',auth()->user()->id)->orderBy('created_at', 'DESC')
+        ->where('orders.rom_id',auth()->user()->id)->orderBy('created_at', 'DESC')
+        ->where('orders.confirmStatus','returned_acceptance')->get(['users.firstName','users.middleName'
         ,'users.lastName','orders.*']);
 
         return view('ROM.Returned_order',compact('client'));
@@ -339,22 +791,57 @@ public function romViewhistory()
         return response()->json(['success' => true]);
 
     }
+  public function confirm_tm(Request $request)
+    {
+        $products = $request->input('products');
+         foreach ($products as $product) {
+            foreach ($product as $detail) {
 
-       public function confirm(Request $request)
+                $orderId = $detail['orderId'];
+                 $orderupdate = order::where('id',$orderId)
+                ->update(['tm_confirmation'=>'confirmed']);
+            }
+        }
+         LogActivity::addToLog('confirm order');
+
+            Alert::toast('Order Confirmed', 'success');
+        return redirect('/tmDashboard');
+
+
+    }
+      public function confirm_kd(Request $request)
+    {
+        $products = $request->input('products');
+         foreach ($products as $product) {
+            foreach ($product as $detail) {
+
+                $orderId = $detail['orderId'];
+                 $orderupdate = order::where('id',$orderId)
+                ->update(['tm_confirmation'=>'confirmed']);
+            }
+        }
+         LogActivity::addToLog('confirm order');
+
+            Alert::toast('Order Confirmed', 'success');
+        return redirect('/key_distroDashboard');
+    }
+
+    public function confirm(Request $request)
     {
 
-        
         $row = [];
         $price_status=0;
 
         $consent= order::where('id', $request->order_id)->get('consent');
 
 
-       if($request->total_price != $request->subtotal)
+        if($request->total_price != $request->subtotal)
         {
             $price_status=1;
         }
-        foreach ($request->all() as $key => $value) {
+
+        foreach ($request->all() as $key => $value)
+        {
 
              if (strpos($key, 'status_') === 0) {
                 $stat = explode("_",$key);
@@ -383,7 +870,7 @@ public function romViewhistory()
             if($status == 'quantity_Adjustment') {
 
                 $quantity = $val['quantity'];
-                if($consent[0]->consent ==0 ){
+            if($consent[0]->consent ==0 ){
                  $orderedProducts = orderedProducts::join('orders','orders.id','=','ordered_products.order_id')
         ->join('products','products.id','=','ordered_products.product_id')
         ->where('ordered_products.order_id',$request->order_id)
@@ -392,7 +879,6 @@ public function romViewhistory()
         return view('ROM.rom_unconfirmed_details',compact('orderedProducts'));
 
             }
-
 
             }
              $orderedProduct = OrderedProducts::join('orders','orders.id','=','ordered_products.order_id')
@@ -632,13 +1118,14 @@ $refusalrecords=OrderedProducts::where('status','refusal')->where('order_id',$re
                 }
 
 
+    LogActivity::addToLog('Order Confirm');
 
                Alert::toast('Order Confirmed', 'success');
       return redirect('/romDashboard');
 
 
-
         }
+
 
 
 
@@ -713,6 +1200,7 @@ $status = $request->input('status');
         ->where('ordered_products.order_id',$order_id)
         ->get();
 
+
 // echo $orderedProducts;
 // Alert::toast('ye','success');
 // echo $orderedProducts;
@@ -722,6 +1210,7 @@ if (count($orderedProducts) === 0 ){
 }
 
 else{
+
         return view('KD.kd_unconfirmed_details',compact('orderedProducts','auth'));
 
 }
@@ -734,13 +1223,17 @@ else{
 
             public function tm_unconfirmed_details(Request $request)
     {
-             $auth = Auth::user()->userName;
+             $auth = Auth::user()->id;
+               $tm=tm::where('user_id',$auth)->get(['kd_id']);
+
+
         $order_id=$request->order_id;
+
 
         $client = order::join('users','users.id','=','orders.client_id')
         ->join('clients','clients.user_id','=','orders.client_id')
-        ->where('orders.KD_id',auth()->user()->kd_id)->get(['users.firstName','users.middleName'
-        ,'users.lastName','orders.id','orders.createdDate','orders.deliveryStatus']);
+        ->where('orders.KD_id',$tm[0]->kd_id)->get(['users.firstName','users.middleName'
+        ,'users.lastName','orders.id','orders.createdDate','orders.deliveryStatus','orders.price_update']);
 
         $orderedProducts = orderedProducts::join('orders','orders.id','=','ordered_products.order_id')
         ->join('products','products.id','=','ordered_products.product_id')
@@ -748,9 +1241,9 @@ else{
         ->where('ordered_products.order_id',$order_id)
         ->get();
 
-// echo $orderedProducts;
-// Alert::toast('ye','success');
-// echo $orderedProducts;
+
+
+
 if (count($orderedProducts) === 0 ){
     return back();
     alert::toast('order doesn not exist','warning');
@@ -786,11 +1279,14 @@ public function rom_order_history_details(Request $request)
 // Alert::toast('ye','success');
 // echo $orderedProducts;
 if (count($orderedProducts) === 0 ){
+    LogActivity::addToLog('view orders  failed');
+
     return back();
     alert::toast('order doesn not exist','warning');
 }
 
 else{
+    LogActivity::addToLog('view order status');
 
         return view('ROM.rom_orderhistory_details',compact('orderedProducts','auth'));
 
@@ -817,9 +1313,10 @@ else{
         ->where('ordered_products.order_id',$order_id)
         ->get();
 
-// echo $orderedProducts;
+//  echo $orderedProducts;
 // Alert::toast('ye','success');
-// echo $orderedProducts;
+
+
 if (count($orderedProducts) === 0 ){
     return back();
     alert::toast('order doesn not exist','warning');
@@ -846,7 +1343,7 @@ else{
         $client = order::join('users','users.id','=','orders.client_id')
         ->join('clients','clients.user_id','=','orders.client_id')
         ->where('orders.KD_id',auth()->user()->id)->get(['users.firstName','users.middleName'
-        ,'users.lastName','orders.id','orders.createdDate','orders.deliveryStatus']);
+        ,'users.lastName','orders.id','orders.createdDate','orders.deliveryStatus','orders.price_update']);
 
         $orderedProducts = orderedProducts::join('orders','orders.id','=','ordered_products.order_id')
         ->join('products','products.id','=','ordered_products.product_id')
@@ -874,7 +1371,7 @@ else{
         $client = order::join('users','users.id','=','orders.client_id')
         ->join('clients','clients.user_id','=','orders.client_id')
         ->where('orders.KD_id',auth()->user()->id)->get(['users.firstName','users.middleName'
-        ,'users.lastName','orders.id','orders.createdDate','orders.deliveryStatus']);
+        ,'users.lastName','orders.id','orders.createdDate','orders.deliveryStatus','orders.price_update']);
 
         $orderedProducts = orderedProducts::join('orders','orders.id','=','ordered_products.order_id')
         ->join('products','products.id','=','ordered_products.product_id')
@@ -967,6 +1464,32 @@ else{
 
 
     }
+        public function orderDetailsaccionreport(Request $request)
+    {
+
+
+        $auth = Auth::user()->userName;
+        $order_id=$request->order_id;
+
+        $client = order::join('users','users.id','=','orders.client_id')
+        ->join('clients','clients.user_id','=','orders.client_id')
+        ->where('orders.KD_id',auth()->user()->id)
+        ->where('clients.Region','Gambella')
+        ->get(['users.firstName','users.middleName'
+        ,'users.lastName','orders.id','orders.createdDate','orders.deliveryStatus']);
+
+        $orderedProducts = orderedProducts::join('orders','orders.id','=','ordered_products.order_id')
+        ->join('products','products.id','=','ordered_products.product_id')
+        ->where('ordered_products.order_id',$order_id)
+        ->distinct()
+        ->get(['products.image','products.description','products.price','products.name','ordered_products.ordered_quantity',
+        'ordered_products.kd_adjusted_quantity','ordered_products.subTotal','orders.totalPrice','ordered_products.status']);
+
+
+         return view('orderCart.orderDetailsaccionreport',compact('orderedProducts','auth'));
+
+
+    }
  public function orderDetailshoreport(Request $request)
     {
         $auth = Auth::user()->userName;
@@ -980,12 +1503,39 @@ else{
         $orderedProducts = orderedProducts::join('orders','orders.id','=','ordered_products.order_id')
         ->join('products','products.id','=','ordered_products.product_id')
         ->where('ordered_products.order_id',$order_id)
-        ->distinct()
+         ->distinct()
         ->get(['products.image','products.description','products.price','products.name','ordered_products.ordered_quantity',
         'ordered_products.kd_adjusted_quantity','ordered_products.subTotal','orders.totalPrice','ordered_products.status']);
 
 
          return view('orderCart.orderDetailshoreport',compact('orderedProducts','auth'));
+
+
+    }
+    public function orderDetailsaccion(Request $request)
+    {
+
+
+               $auth = Auth::user()->userName;
+        $order_id=$request->order_id;
+
+        $client = order::join('users','users.id','=','orders.client_id')
+        ->join('clients','clients.user_id','=','orders.client_id')
+        ->where('orders.KD_id',auth()->user()->id)->get(['users.firstName','users.middleName'
+        ,'users.lastName','orders.id','orders.createdDate','orders.deliveryStatus']);
+
+        $orderedProducts = orderedProducts::join('orders','orders.id','=','ordered_products.order_id')
+        ->join('products','products.id','=','ordered_products.product_id')
+         ->join('delivery1s','delivery1s.order_id','=','ordered_products.order_id')
+         ->join('delivery1_products', function ($join)
+          {
+             $join->on('delivery1_products.delivery1_id', '=', 'delivery1s.id')
+             ->on('products.id', '=', 'delivery1_products.product_id');
+          })
+        ->where('ordered_products.order_id',$order_id)
+        ->distinct()
+        ->get(['products.image','products.description','products.id', 'orders.id', 'products.name','products.price','ordered_products.ordered_quantity','ordered_products.kd_adjusted_quantity','delivery1_products.partial_quantity','delivery1_products.delivered_quantity','ordered_products.subTotal','orders.totalPrice','delivery1_products.amount_status','ordered_products.status']);
+         return view('orderCart.orderDetailsaccion',compact('orderedProducts','auth'));
 
 
     }
@@ -995,12 +1545,14 @@ else{
 
                $auth = Auth::user()->userName;
         $order_id=$request->order_id;
+         $user=auth()->user()->userType;
+
         $client = order::join('users','users.id','=','orders.client_id')
         ->join('clients','clients.user_id','=','orders.client_id')
         ->where('orders.KD_id',auth()->user()->id)->get(['users.firstName','users.middleName'
         ,'users.lastName','orders.id','orders.createdDate','orders.deliveryStatus']);
 
-            $orderedProducts = orderedProducts::join('orders','orders.id','=','ordered_products.order_id')
+       $orderedProducts = orderedProducts::join('orders','orders.id','=','ordered_products.order_id')
     ->join('products','products.id','=','ordered_products.product_id')
     ->join('delivery1s','delivery1s.order_id','=','ordered_products.order_id')
     ->join('delivery1_products', function ($join) {
@@ -1010,11 +1562,17 @@ else{
     ->where('orders.id', $order_id)
     ->distinct()
     ->get(['products.image','products.description','products.id', 'orders.id', 'products.name','products.price','ordered_products.ordered_quantity','ordered_products.kd_adjusted_quantity','delivery1_products.partial_quantity','delivery1_products.delivered_quantity','ordered_products.subTotal','orders.totalPrice','delivery1_products.amount_status','ordered_products.status']);
-   
+
+        if($user=="HO")
+         {
+              return view('orderCart.orderDetailsho',compact('orderedProducts','auth'));
+         }
+         else if($user=="admin")
+         {
+              return view('orderCart.orderDetailsho',compact('orderedProducts','auth'));
+         }
 
 
-
-         return view('orderCart.orderDetailsho',compact('orderedProducts','auth'));
 
 
     }
@@ -1086,16 +1644,24 @@ else{
      */
      public function store(Request $request)
    {
- $client_id = $request->clients_user_id;
+        $client_id = $request->clients_user_id;
         // $KD_id = $client_ids[1];
         $ord = Auth::id();
+        $city = client::where('user_id',$client_id)
+        ->get('clients.City');
 
 
-
-         $KD_id = client::where('user_id',$client_id)
+        $KD_id = client::where('user_id',$client_id)
         ->get('clients.distro_id');
         $agent= agent::where('user_id',Auth::id())->get();
         $rom_id=$agent[0]->rom_id;
+        $order_status=cities::where('name','=',$city[0]->City)
+        ->get();
+        $order_statuses=order_statuses::where('City','=',$city[0]->City)
+        ->where('status','=',1)
+        ->whereNull('enddate')
+        ->get();
+
 
         $a=agent::all();
         // echo $KD_id;
@@ -1106,44 +1672,147 @@ else{
         $client = client::join('users','users.id','=','clients.user_id')
             ->where('clients.user_id',$client_id)
             ->value('clients.PinCode');
-        if($client == $request->pinCode)
+
+        if($order_status[0]->order_status==1)
         {
-            // echo $agent[0]->rom_id;
+             if($client == $request->pinCode)
+        {
+
 
         $products = \Cart::getcontent();
 
-         $order = order::create([
-            // $client_ids = explode('|', $request->client),
+
+        $size_of_product=0;
+        $size_of_found=0;
+         $start_date=$order_statuses[0]->startdate;
+         $start_date = Carbon::parse($start_date);
+
+        $start_date = $start_date->format('Y-m-d');
+         $prduct_found=OrderedProducts::join('orders','orders.id','=','ordered_products.order_id')
+            ->where('orders.client_id','=',$client_id)
+            ->where('orders.confirmStatus','!=','confirmed')
+            ->where('orders.createdDate','>=',$start_date);
+
+             $orders_byclient=$prduct_found->get(['ordered_products.id','ordered_products.ordered_quantity','ordered_products.subTotal','orders.id as order_id','orders.totalPrice']);
+
+             if($orders_byclient->count() > 0)
+         {
+
+            foreach($products as $product)
+            {
+            $size_of_product=$size_of_product+1;
+            $amount = $product->quantity;
+            $Avaliable_product = product::find($product->id);
+            $reserved=$Avaliable_product->reserverd_qty+$amount;
+            if ($Avaliable_product->Qty >= $amount && $Avaliable_product->Qty > 0 )
+            {
+
+            $prduct_found=OrderedProducts::join('orders','orders.id','=','ordered_products.order_id')
+            ->where('orders.client_id','=',$client_id)
+            ->where('orders.createdDate','>=',$start_date);
+
+             $update_reserved=product::where('id',$product->id)
+            ->update(['reserverd_qty'=> $reserved]);
+
+
+             $update_reserved=product::where('id',$product->id)
+            ->update(['reserverd_qty'=> $reserved]);
+            $orders_byclient=$prduct_found->get(['ordered_products.id','ordered_products.ordered_quantity','ordered_products.subTotal',
+            'orders.id as order_id','orders.totalPrice']);
+
+            $prduct_found=$prduct_found->where('ordered_products.product_id','=',$product->id)
+            ->get(['ordered_products.id','ordered_products.ordered_quantity','ordered_products.subTotal','orders.id as order_id','orders.totalPrice']);
+                   if($prduct_found->count() > 0)
+            {
+
+               $size_of_found=$size_of_found+1;
+               $new_quantity_update=$prduct_found[0]->ordered_quantity+$product->quantity;
+               $new_subtotal_update=$prduct_found[0]->subTotal+$product->attributes->subtotal;
+               $new_total_update=$prduct_found[0]->totalPrice+$product->attributes->subtotal;
+
+
+
+               OrderedProducts::where('id',$prduct_found[0]->id)
+               ->update(['ordered_quantity'=>$new_quantity_update,'subTotal'=>$new_subtotal_update]);
+                order::where('id',$prduct_found[0]->order_id)
+               ->update(['totalPrice'=>$new_total_update]);
+               order_details::create([
+                  'ordered_id'=>$prduct_found[0]->id,
+                  'quantity'=>$product->quantity,
+                  'created_date'=>today(),
+               ]);
+
+
+            }
+            else
+            {
+
+               $new_total_update=$orders_byclient[0]->totalPrice+$product->attributes->subtotal;
+
+
+              $ordered_product=OrderedProducts::create([
+                'product_id' => $product->id,
+                'order_id' => $orders_byclient[0]->order_id,
+                'ordered_quantity' => $product->quantity,
+                'subTotal'=>$product->attributes->subtotal,
+            ]);
+             order::where('id',$orders_byclient[0]->order_id)
+               ->update(['totalPrice'=>$new_total_update]);
+
+                order_details::create([
+                  'ordered_id'=>$ordered_product->id,
+                  'quantity'=>$product->quantity,
+                  'created_date'=>today(),
+               ]);
+            }
+        }
+            else {
+        Alert::toast('You can not order more than available quantity', 'warning');
+              return back();
+            }
+
+         }
+          LogActivity::addToLog('Order');
+        Alert::toast('Successfully Ordered', 'success');
+        \Cart::clear();
+
+        return redirect('/showOrders');
+
+            }
+         else
+         {
+             $order = order::create([
             'client_id'=>$client_id,
             'KD_id'=>$KD_id[0]->distro_id,
             'Hierarchy_id'=>$request->hierarchy_id,
             'createdDate'=> today(),
             'createdBy'=> auth()->user()->id,
             'orderedBy'=> auth()->user()->userType,
-            'consent'=>$request->consent,
-            'rom_id'=> $rom_id,
-
-
-
-            'totalPrice'=>$request->total
+            'consent'=>1,
+            'rom_id'=>  $rom_id,
+            'totalPrice'=>$request->total,
+            'price_update'=>'0'
         ]);
-        foreach($products as $product){
+         foreach($products as $product)
+        {
             $amount = $product->quantity;
             $Avaliable_product = product::find($product->id);
             $reserved=$Avaliable_product->reserverd_qty+$amount;
-            if ($Avaliable_product->Qty >= $amount && $Avaliable_product->Qty > 0 ) {
-
-            //      $Avaliable_product->Qty -= $amount;
-            // $Avaliable_product->save();
-
+            if ($Avaliable_product->Qty >= $amount && $Avaliable_product->Qty > 0 )
+             {
             $update_reserved=product::where('id',$product->id)
             ->update(['reserverd_qty'=> $reserved]);
-            OrderedProducts::create([
+            $ordered_product=OrderedProducts::create([
                 'product_id' => $product->id,
                 'order_id' => $order->id,
                 'ordered_quantity' => $product->quantity,
                 'subTotal'=>$product->attributes->subtotal,
             ]);
+            order_details::create([
+                  'ordered_id'=>$ordered_product->id,
+                  'quantity'=>$product->quantity,
+                  'created_date'=>today(),
+               ]);
             }
             else {
         Alert::toast('You can not order more than available quantity', 'warning');
@@ -1157,31 +1826,32 @@ else{
 
              }
               return back();
-     
-
             }
-
         }
+        LogActivity::addToLog('Order');
         Alert::toast('Successfully Ordered', 'success');
         \Cart::clear();
 
         return redirect('/showOrders');
-    }
-    else {
-        # code...
-         Alert::toast('Pin Code Incorrect', 'failed');
+         }
+        }
+
+     else
+        {
+             Alert::toast('Pin Code Incorrect', 'failed');
          return back();
-    }
+        }
+
+            }
+            else
+               {
+                Alert::toast('You cannot order now', 'failed');
+                 return back();
                }
-    /**
-     * Display the specified resource.
-     *
-     * @param  \App\Models\orderedProducts  $orderedProducts
-     * @return \Illuminate\Http\Response
-     */
+        }
     public function show(orderedProducts $orderedProducts)
     {
-        //
+
     }
 
     /**
@@ -1207,6 +1877,8 @@ else{
 
         $orderupdate = order::where('id',$request->order_id)
             ->update(['tm_confirmation'=>'confirmed']);
+        LogActivity::addToLog('confirm order');
+
             Alert::toast('Order Confirmed', 'success');
         return redirect('/tmDashboard');
     }
@@ -1216,6 +1888,8 @@ else{
 
         $orderupdate = order::where('id',$request->order_id)
             ->update(['tm_confirmation'=>'confirmed']);
+            LogActivity::addToLog('Order Confirm');
+
             Alert::toast('Order Confirmed', 'success');
         return redirect('/key_distroDashboard');
     }

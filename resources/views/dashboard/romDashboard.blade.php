@@ -346,10 +346,8 @@
                                         <tr>
                                             <th>Delivery ID</th>
                                             <th>Delivered from</th>
-                                           
                                             <th>Order ID</th>
                                             <th>Confirmation Status</th>
-                                            <th>Action</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -357,17 +355,10 @@
                                       <tr>
                                             <td>{{$delivery->id}}</td>
                                             <td>{{$delivery->firstName}} {{$delivery->middleName}} {{$delivery->lastName}}</td>
-                                            
+
                                             <td>{{$delivery->order_id}}</td>
                                             <td>{{$delivery->confirmationStatus}}</td>
-                                            <td>
-                                            <form action="{{ ('/rom/new/delivery/details') }}" method="POST">
-                                               @csrf
-                                               <input type="hidden" value="{{$delivery->id}}" name="delivery1_id" >
-                                               <input type="hidden" value="{{$delivery->order_id}}" name="order_id" >
-                                             <button type="submit" class="btn btn-outline-success">View Details</button>
-                                            </form>
-                                        </td>
+
                                         </tr>
                                 @endforeach
                                 </table>
@@ -381,7 +372,7 @@
         <!-- partial:partials/_footer.html -->
         <footer class="footer">
             <div class="d-sm-flex justify-content-center justify-content-sm-between">
-                <span class="text-muted text-center text-sm-left d-block d-sm-inline-block">Copyright © Elebat solution<a
+                <span class="text-muted text-center text-sm-left d-block d-sm-inline-block">Copyright ï¿½ Elebat solution<a
                         href="https://www.bootstrapdash.com/" target="_blank">Elebatsolution.com </a>2023</span>
 
             </div>

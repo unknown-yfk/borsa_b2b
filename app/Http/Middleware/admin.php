@@ -7,6 +7,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Session;
 use RealRashid\SweetAlert\Facades\Alert;
+use App\Helpers\LogActivity;
+
 
 class admin
 {
@@ -21,13 +23,16 @@ class admin
 
      public function handle(Request $request, Closure $next)
     {
+
         if(Auth::user()->userType=="admin")
            {
             return $next($request);
+
            }
         else
         {
             //Alert::warning('Unauthorized', 'User Not Authorized To Perform This Action');
+            LogActivity::addToLog('Logout');
 
             Session::flush();
             Auth::logout();

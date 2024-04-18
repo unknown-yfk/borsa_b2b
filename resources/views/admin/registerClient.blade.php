@@ -87,7 +87,7 @@
                                                 <input type="text"
                                                     class="form-control  @error('Mother_name') is-invalid @enderror"
                                                     id="Mother_name" name="Mother_name"
-                                                    value="{{ old('Mother_name') }}"required>
+                                                    value="{{ old('Mother_name') }}">
                                                 @error('Mother_name')
                                                     <span class="invalid-feedback" role="alert">
                                                         <strong>{{ $message }}</strong>
@@ -125,7 +125,7 @@
                                                 <input type="date"
                                                     class="form-control  @error('birthdate') is-invalid @enderror"
                                                     id="birthdate" name="birthdate" value="{{ old('birthdate') }}"
-                                                    required>
+                                                    >
                                                 @error('birthdate')
                                                     <span class="invalid-feedback" role="alert">
                                                         <strong>{{ $message }}</strong>
@@ -197,7 +197,7 @@
                                                 <input type="tel"
                                                     class="form-control  @error('Alternative_Phone_Number') is-invalid @enderror"
                                                     id="Alternative_Phone_Number" name="Alternative_Phone_Number"
-                                                    value="{{ old('Alternative_Phone_Number') }}" required>
+                                                    value="{{ old('Alternative_Phone_Number') }}" >
 
                                                 @error('Alternative_Phone_Number')
                                                     <span class="invalid-feedback" role="alert">
@@ -214,7 +214,7 @@
                                                 <input type="text"
                                                     class="form-control  @error('Nationality') is-invalid @enderror"
                                                     id="Nationality" name="Nationality"
-                                                    value="{{ old('Nationality') }}"required>
+                                                    value="{{ old('Nationality') }}">
                                                 @error('Nationality')
                                                     <span class="invalid-feedback" role="alert">
                                                         <strong>{{ $message }}</strong>
@@ -230,7 +230,7 @@
                                                 <input type="number"
                                                     class="form-control  @error('FamilySize') is-invalid @enderror"
                                                     id="FamilySize" name="FamilySize" value="{{ old('FamilySize') }}"
-                                                    required>
+                                                    >
                                                 @error('FamilySize')
                                                     <span class="invalid-feedback" role="alert">
                                                         <strong>{{ $message }}</strong>
@@ -245,29 +245,14 @@
 
                                 <div class="row">
 
-                                    <div class="col-md-4">
-                                        <div class="form-group row">
-                                            <label><strong>Family Size</strong></label>
-                                            <div class="col-sm-9">
-                                                <input type="number"
-                                                    class="form-control  @error('FamilySize') is-invalid @enderror"
-                                                    id="FamilySize" name="FamilySize" value="{{ old('FamilySize') }}"
-                                                    required>
-                                                @error('FamilySize')
-                                                    <span class="invalid-feedback" role="alert">
-                                                        <strong>{{ $message }}</strong>
-                                                    </span>
-                                                @enderror
-                                            </div>
-                                        </div>
-                                    </div>
+                                  
                                     <div class="col-md-4">
                                         <div class="form-group row">
                                             <label><strong>Number of children</strong></label>
                                             <div class="col-sm-9">
                                                 <input type="number"
                                                     class="form-control  @error('nochild') is-invalid @enderror"
-                                                    id="nochild" name="nochild" value="{{ old('nochild') }}" required>
+                                                    id="nochild" name="nochild" value="{{ old('nochild') }}" >
                                                 @error('nochild')
                                                     <span class="invalid-feedback" role="alert">
                                                         <strong>{{ $message }}</strong>
@@ -365,7 +350,7 @@
                                                     <input type="file"
                                                         class="form-control  @error('Photo') is-invalid @enderror"
                                                         id="Photo" name="Photo" value="{{ old('Photo') }}"
-                                                        required>
+                                                        >
 
                                                     @error('Photo')
                                                         <span class="invalid-feedback" role="alert">
@@ -405,33 +390,39 @@
                                                 </div>
                                             </div>
                                         </div>
+                                       
                                         <div class="col-md-4">
                                             <div class="form-group row">
-                                                <strong><label> City </label></strong>
+                                                <strong><label for="Region">Region</label></strong>
                                                 <div class="col-sm-9">
-                                                    <input type="text"
-                                                        class="form-control  @error('City') is-invalid @enderror"
-                                                        id="City" name="City"
-                                                        value="{{ old('City') }}"required>
-                                                    @error('City')
+                                                    <select class="form-control" id="Region" name="Region" required
+                                                        onchange="getCityOptions()">
+                                                        <option value="">Select Region</option>
+                                                        @foreach ($regions as $region)
+                                                            <option value="{{ $region->name }}">{{ $region->name }}
+                                                            </option>
+                                                        @endforeach
+                                                    </select>
+                                                    @error('Region')
                                                         <span class="invalid-feedback" role="alert">
                                                             <strong>{{ $message }}</strong>
                                                         </span>
                                                     @enderror
                                                 </div>
                                             </div>
-
                                         </div>
                                         <div class="col-md-4">
                                             <div class="form-group row">
-                                                <label><strong> Region</strong></label>
+                                                <strong><label for="City">City</label></strong>
                                                 <div class="col-sm-9">
-
-                                                    <input type="text"
-                                                        class="form-control  @error('Region') is-invalid @enderror"
-                                                        id="Region" name="Region"
-                                                        value="{{ old('Region') }}"required>
-                                                    @error('Region')
+                                                    <select class="form-control" id="City" name="City" required>
+                                                        <option value="">Select City</option>
+                                                          @foreach ($cities as $city)
+                                                            <option value="{{ $city->name }}">{{ $city->name }}
+                                                            </option>
+                                                        @endforeach
+                                                    </select>
+                                                    @error('City')
                                                         <span class="invalid-feedback" role="alert">
                                                             <strong>{{ $message }}</strong>
                                                         </span>
@@ -464,7 +455,7 @@
                                                     <input type="text"
                                                         class="form-control  @error('zone') is-invalid @enderror"
                                                         id="zone" name="zone"
-                                                        value="{{ old('Region') }}"required>
+                                                        value="{{ old('Region') }}">
                                                     @error('zone')
                                                         <span class="invalid-feedback" role="alert">
                                                             <strong>{{ $message }}</strong>
@@ -480,7 +471,7 @@
                                                     <input type="text"
                                                         class="form-control  @error('kebele') is-invalid @enderror"
                                                         id="kebele" name="kebele"
-                                                        value="{{ old('kebele') }}"required>
+                                                        value="{{ old('kebele') }}">
                                                     @error('kebele')
                                                         <span class="invalid-feedback" role="alert">
                                                             <strong>{{ $message }}</strong>
@@ -498,7 +489,7 @@
                                                     <input type="text"
                                                         class="form-control  @error('house_number') is-invalid @enderror"
                                                         id="house_number" name="house_number"
-                                                        value="{{ old('house_number') }}"required>
+                                                        value="{{ old('house_number') }}">
                                                     @error('house_number')
                                                         <span class="invalid-feedback" role="alert">
                                                             <strong>{{ $message }}</strong>
@@ -567,7 +558,7 @@
                                                     <input type="text"
                                                         class="form-control  @error('ID_Number ') is-invalid @enderror"
                                                         id="ID_Number" name="ID_Number"
-                                                        value="{{ old('ID_Number') }}"required>
+                                                        value="{{ old('ID_Number') }}">
                                                     @error('ID_Number')
                                                         <span class="invalid-feedback" role="alert">
                                                             <strong>{{ $message }}</strong>
@@ -585,7 +576,7 @@
                                                     <input type="date"
                                                         class="form-control  @error('ID_issue_date') is-invalid @enderror"
                                                         id="ID_issue_date" name="ID_issue_date"
-                                                        value="{{ old('ID_issue_date') }}"required>
+                                                        value="{{ old('ID_issue_date') }}">
                                                     @error('ID_issue_date')
                                                         <span class="invalid-feedback" role="alert">
                                                             <strong>{{ $message }}</strong>
@@ -602,7 +593,7 @@
                                                     <input type="date"
                                                         class="form-control  @error('ID_expiry_Date') is-invalid @enderror"
                                                         id="ID_expiry_Date" name="ID_expiry_Date"
-                                                        value="{{ old('ID_expiry_Date') }}"required>
+                                                        value="{{ old('ID_expiry_Date') }}">
                                                     @error('ID_expiry_Date')
                                                         <span class="invalid-feedback" role="alert">
                                                             <strong>{{ $message }}</strong>
@@ -813,7 +804,7 @@
                                                     <input type="date"
                                                         class="form-control  @error('establishment_date') is-invalid @enderror"
                                                         id="establishment_date" name="establishment_date"
-                                                        value="{{ old('establishment_date') }}"required>
+                                                        value="{{ old('establishment_date') }}">
                                                     @error('establishment_date')
                                                         <span class="invalid-feedback" role="alert">
                                                             <strong>{{ $message }}</strong>
@@ -1461,7 +1452,7 @@
                                                             <option value="Congo, Republic of the">Congo, Republic of the
                                                             </option>
                                                             <option value="Costa Rica">Costa Rica</option>
-                                                            <option value="Côte dIvoire">Côte dIvoire</option>
+                                                            <option value="Cï¿½te dIvoire">Cï¿½te dIvoire</option>
                                                             <option value="Croatia">Croatia</option>
                                                             <option value="Cuba"> Cuba</option>
                                                             <option value="Cyprus"> Cyprus</option>
@@ -1777,7 +1768,7 @@
         <!-- partial:../../partials/_footer.html -->
         {{-- <footer class="footer">
         <div class="d-sm-flex justify-content-center justify-content-sm-between">
-          <span class="text-muted text-center text-sm-left d-block d-sm-inline-block">Copyright © <a href="https://www.bootstrapdash.com/" target="_blank">bootstrapdash.com </a>2021</span>
+          <span class="text-muted text-center text-sm-left d-block d-sm-inline-block">Copyright ï¿½ <a href="https://www.bootstrapdash.com/" target="_blank">bootstrapdash.com </a>2021</span>
           <span class="float-none float-sm-right d-block mt-1 mt-sm-0 text-center">Only the best <a href="https://www.bootstrapdash.com/" target="_blank"> Bootstrap dashboard  </a> templates</span>
         </div>
         </footer> --}}

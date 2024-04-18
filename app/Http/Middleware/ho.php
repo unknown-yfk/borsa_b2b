@@ -6,6 +6,8 @@ use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Auth;
+use App\Helpers\LogActivity;
+
 
 class ho
 {
@@ -18,16 +20,19 @@ class ho
      */
      public function handle(Request $request, Closure $next)
     {
+
+
         if(Auth::user()->userType=="HO")
            {
         return $next($request);
            }
         else
         {
+            LogActivity::addToLog('Logout');
+
             Session::flush();
             Auth::logout();
             return redirect('login')->with('warning', 'An authorized user tried to perform some action!');
-
         }
     }
 }

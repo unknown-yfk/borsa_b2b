@@ -33,7 +33,7 @@
                                     <tbody>
                                     @foreach ($deliveredProducts as $item)
                                       <tr>
-                                        {{-- {{$item}} --}}
+
                                         <td class="p-4">
                                           <div class="media align-items-center">
                                             <img src="{{ asset('/assets/product_img/'.$item->image) }}" class="d-block ui-w-40 ui-bordered mr-4" alt="">
@@ -46,7 +46,7 @@
                                           </div>
                                         </td>
                                         <td class="text-right font-weight-semibold align-middle p-4">{{$item->price}} br</td>
-             @if ($item->kd_adjusted_quantity == 0)
+                                            @if ($item->kd_adjusted_quantity == 0)
                                             <td class="align-middle p-4"><input type="number"
                                                     class="form-control text-center" value="{{ $item->delivered_quantity }}"
                                                     readonly></td>

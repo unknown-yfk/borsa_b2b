@@ -1,3 +1,4 @@
+
 @extends('layouts.mainlayout')
 @section('content')
     <div class="main-panel">
@@ -24,7 +25,7 @@
                         {{ __('Client Name') }} : <strong> {{ $clients[0]->firstName }} {{ $clients[0]->middleName }}
                             {{ $clients[0]->lastName }}</strong><br>
                         {{ __('Key Distributor Name') }} : <strong> {{ $kd_name[0]->firstName }}  {{ $kd_name[0]->middleName }}
-                            {{ $clients[0]->lastName  }}</strong><br><br>
+                            {{ $kd_name[0]->lastName  }}</strong><br><br>
 
                             {{-- <a href="/order/place" type="button" class="btn btn-primary">Start Ordering</a> --}}
 <button type="submit" class="btn btn-primary "> {{__('Start Ordering')}}</button>

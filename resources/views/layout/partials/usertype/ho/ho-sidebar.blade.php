@@ -1,23 +1,18 @@
-<nav class="sidebar sidebar-offcanvas" id="sidebar">
-    <ul class="nav  position-fixed">
+
+<style>
+#sidebar
+{
+    width: 260px;
+}
+</style><nav class="sidebar sidebar-offcanvas" id="sidebar">
+    <ul class="nav">
         <li class="nav-item">
             <a class="nav-link" href="/hoDashboard">
                 <i class="mdi mdi-home menu-icon"></i>
                 <span class="menu-title">{{ __('messages.Dashboard') }}</span>
             </a>
         </li>
-        <li class="nav-item">
-            <a class="nav-link" data-bs-toggle="collapse" href="#ui-basi" aria-expanded="false" aria-controls="ui-basi">
-              <i class="mdi mdi-account menu-icon"></i>
-              <span class="menu-title">{{__('messages.Profile')}}</span>
-              <i class="menu-arrow"></i>
-            </a>
-            <div class="collapse" id="ui-basi">
-              <ul class="nav flex-column sub-menu">
-                <li class="nav-item"> <a class="nav-link" href="/ho/password/change">Change Password</a></li>
-              </ul>
-            </div>
-        </li>
+
 
         <li class="nav-item">
             <a class="nav-link" data-bs-toggle="collapse" href="#ui-Report" aria-expanded="false"
@@ -36,7 +31,17 @@
                      <li class="nav-item"> <a class="nav-link"  href="/ho/productpersubloaction/report">Product Report <br> Per  Sub-Location</a></li>
                      <li class="nav-item"> <a class="nav-link" href="/ho/onboarding/report">Target profile & <br> oboarding report</a></li>
                      <li class="nav-item"> <a class="nav-link"  href="/ho/orderfulfilment/report">Order Fulfilment Report</a></li>
-                                     </ul>
+                     {{-- <li class="nav-item"> <a class="nav-link" href="/ho/delivery/report">delivery Report</a></li>
+                     <li class="nav-item"> <a class="nav-link" href="/ho/deliveryperagent/report">delivery Report per agent</a></li>
+                     <li class="nav-item"> <a class="nav-link"  href="/ordersummary/report">Order Capture Summary Report</a></li> --}}
+                     <li class="nav-item"> <a class="nav-link" href="/ho/ordercapture/report">Order Capture Summary <br> Report</a></li>
+                     <li class="nav-item"> <a class="nav-link" href="/ho/ordercapturetransaction/report">Order Capture Transaction <br> Summary Report </a></li>
+                     <li class="nav-item"> <a class="nav-link"  href="/ho/orderfulfilment/report1">Order Fulfilment <br> Summary Report </a></li>
+                     <li class="nav-item"> <a class="nav-link"  href="/ho/orderfulfilmenttransaction/report">Order Fulfilment Transaction <br> Summary Report </a></li>
+                     <li class="nav-item"> <a class="nav-link" href="/ho/loan/report">
+                            Loan Report</a></li>
+
+                </ul>
             </div>
         </li>
 

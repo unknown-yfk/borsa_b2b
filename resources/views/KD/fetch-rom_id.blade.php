@@ -75,15 +75,15 @@
                                                     {{ $item->subTotal }} br</td>
                                                              @php
                                                     // $totalSum += $p->ordered_quantity * $p->price;
-                                                    $totalSum += $item->ordered_quantity * $item->subTotal/$item->ordered_quantity;
+                                                    $totalSum += $item->ordered_quantity * $item->price;
 
                                                 @endphp
                                             @elseif ($item->kd_adjusted_quantity !== 0)
                                                 <td class="text-right font-weight-semibold align-middle p-4">
-                                                    {{  $item->kd_adjusted_quantity * $item->subTotal/$item->kd_adjusted_quantity }} br</td>
+                                                  {{  $item->kd_adjusted_quantity * $item->price }} br</td>
                                                        @php
                                                     // $totalSum += $p->delivered_quantity * $p->price;
-                                                    $totalSum += $item->kd_adjusted_quantity * $item->subTotal/$item->kd_adjusted_quantity;
+                                                   $totalSum += $item->kd_adjusted_quantity * $item->price;
 
                                                     // $totalSum += $p->kd_adjusted_quantity * $p->price;
                                                 @endphp

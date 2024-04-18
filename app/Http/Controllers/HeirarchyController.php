@@ -31,6 +31,9 @@ class HeirarchyController extends Controller
             'kd_id'=> auth()->user()->id,
             'order_id'=>$request->order_id,
             'deliveryTotalPrice'=>$request->total,
+            'cico_confirmation'=> 'unconfirmed',
+
+
 
         ]);
         // iterate through the products and store them into the database

@@ -222,7 +222,9 @@ return [
     'aliases' => Facade::defaultAliases()->merge([
         'Helper'=> App\Helpers\general::class,
          'QrCode' => SimpleSoftwareIO\QrCode\Facades\QrCode::class,
-        'Cart' => Darryldecode\Cart\Facades\CartFacade::class
+        'Cart' => Darryldecode\Cart\Facades\CartFacade::class,
+        'LogActivity' => App\Helpers\LogActivity::class,
+        'Response' => Illuminate\Support\Facades\Response::class,
         // 'ExampleClass' => App\Example\ExampleClass::class,
     ])->toArray(),
 

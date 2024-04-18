@@ -12,7 +12,7 @@
                         <h4 class="card-title">List of Clients</h4>
 
                         <p class="card-description">
-                            <code>CLients</code>
+                            <code>Clients </code>
                         </p>
                         <div class="table-responsive pt-3">
                             <table id="table" class="table">
@@ -69,6 +69,7 @@
                             </table>
 
                         </div>
+                        {{ $client->links() }}
                     </div>
                 </div>
             </div>
@@ -95,8 +96,92 @@
                 });
             })
         });
+        // $(document).ready(function() {
+
+        //     $('#table').DataTable();
+        // });
         $(document).ready(function() {
             $('#table').DataTable();
+            var currentPage = 1; // Track the current page
+
+            // Event listener for search input change
+            $('#table_filter input').on('input', function() {
+                // Reset current page when new search is performed
+                currentPage = 1;
+
+                // Get the value of the search input
+                var searchData = $(this).val();
+
+                // Call the function to make the GET request
+                makeGetRequest(searchData);
+            });
+
+            // Event listener for DataTable pagination click
+            $('#table').on('page.dt', function() {
+                // Update current page when DataTable pagination is changed
+                currentPage = $('#table').DataTable().page.info().page + 1;
+
+                // Get the value of the search input
+                var searchData = $('#table_filter input').val();
+
+                // Call the function to make the GET request
+                makeGetRequest(searchData);
+            });
+
+            // Function to make the GET request
+            function makeGetRequest(searchData) {
+                // Make the AJAX GET request
+                $.ajax({
+                    url: '/admin/view/clients',
+                    type: 'GET',
+                    data: {
+                        search: searchData,
+                        page: currentPage // Send current page number
+                    },
+                    // Send filter input data and current page number
+                    success: function(response) {
+                        console.log('Response data:', response); // Log response data
+
+                        var responseData = response.data;
+
+                        // Clear the existing table content
+                        $('#result').empty();
+
+                        // Update the table with the extracted data
+                        if (responseData.length > 0) {
+                            responseData.forEach(function(client) {
+                                var row = '<tr>' +
+                                    '<td>' + client.id + '</td>' +
+                                    '<td>' + client.firstName + ' ' + client.middleName + ' ' +
+                                    client.lastName + '</td>' +
+                                    '<td>' + client.userName + '</td>' +
+                                    '<td><input data-id="' + client.user_id +
+                                    '" class="toggle-class" type="checkbox" data-onstyle="success" data-offstyle="danger" data-toggle="toggle" data-on="active" data-off="inactive"' +
+                                    (client.status ? 'checked' : '') + '></td>' +
+                                    '<td><a href="/admin/view/clients/' + client.id +
+                                    '" class="btn btn-primary"><i class="fa fa-qrcode"></i></a></td>' +
+                                    '<td>' + client.distro_id + '</td>' +
+                                    '<td>' + client.Region + '</td>' +
+                                    '<td>' + client.City + '</td>' +
+                                    '<td><a href="/admin/edit/client/' + client.user_id +
+                                    '" class="btn btn-outline-success">{{ __('Edit') }}</a></td>' +
+                                    '</tr>';
+                                $('#result').append(row);
+                            });
+                        } else {
+                            $('#result').append('<tr><td colspan="10">There are no data.</td></tr>');
+                        }
+
+                        // Reinitialize DataTables if needed
+                        $('#table').DataTable();
+                        console.log('GET request successful');
+                    },
+                    error: function(xhr, status, error) {
+                        // Handle errors
+                        console.error('Error making GET request:', error);
+                    }
+                });
+            }
         });
     </script>
 @endsection

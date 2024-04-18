@@ -14,6 +14,7 @@
                         <p class="card-description">
                             <code>List of orders</code>
                         </p>
+                        <input type="hidden" {{ $total = 0 }} />
                         <div class="table-responsive pt-3">
                             {{-- <table id="datatable" class="table"> --}}
                             <form method="POST" action="{{ route('ordered-products.confirm') }}">
@@ -36,6 +37,7 @@
                                     <tbody>
 
                                         @foreach ($orderedProducts as $item)
+
                                             <tr>
                                                 <td class="p-4">
                                                     <div class="media align-items-center">
@@ -54,11 +56,50 @@
                                                 <td class="align-middle p-4"><input type="number"
                                                         class="form-control text-center"
                                                         value="{{ $item->ordered_quantity }}" readonly></td>
-                                                        <td class="align-middle p-4"><input type="number"
+
+                                                <td class="align-middle p-4"><input type="number"
                                                         class="form-control text-center"
                                                         value="{{ $item->kd_adjusted_quantity }}" readonly></td>
-                                                <td class="text-right font-weight-semibold align-middle p-4">
-                                                    {{ $item->subTotal }} br</td>
+
+                                                @if ($item->price_update == '1')
+
+                                                @if ($item->status == 'quantity_adjustment')
+                                                    <input type="hidden"
+                                                        {{ $total = $total + $item->kd_adjusted_quantity * $item->price  }} />
+                                                    <td class="text-right font-weight-semibold align-middle p-4">
+                                                        {{ $item->kd_adjusted_quantity * $item->price }}
+                                                        br</td>
+                                                @elseif($item->status == 'refusal')
+                                                    <td class="text-right font-weight-semibold align-middle p-4">0
+                                                        br</td>
+                                                        <input type="hidden" {{ $total = $total+0 }} />
+
+                                                @else
+                                                    <td class="text-right font-weight-semibold align-middle p-4">
+                                                        {{ $item->subTotal }} br</td>
+                                                        <input type="hidden" {{ $total = $total+$item->subTotal  }} />
+
+                                                @endif
+                                                @else
+                                                 @if ($item->status == 'quantity_adjustment')
+                                                    <input type="hidden"
+                                                        {{ $total = $total + $item->kd_adjusted_quantity * ($item->subTotal / $item->ordered_quantity) }} />
+                                                    <td class="text-right font-weight-semibold align-middle p-4">
+                                                        {{ $item->kd_adjusted_quantity * ($item->subTotal / $item->ordered_quantity) }}
+                                                        br</td>
+                                                @elseif($item->status == 'refusal')
+                                                    <td class="text-right font-weight-semibold align-middle p-4">0
+                                                        br</td>
+                                                        <input type="hidden" {{ $total = $total+0 }} />
+
+                                                @else
+                                                    <td class="text-right font-weight-semibold align-middle p-4">
+                                                        {{ $item->subTotal }} br</td>
+                                                        <input type="hidden" {{ $total = $total+$item->subTotal  }} />
+
+                                                @endif
+                                                @endif
+
                                                 <td class="text-right font-weight-semibold align-middle p-4">
                                                     {{ $item->status }}</td>
 
@@ -74,7 +115,7 @@
                                         <div class="text-right mt-4">
 
 
-                                            <div class="text-large"><strong>Total Price: {{ $item->totalPrice }}
+                                            <div class="text-large"><strong>Total Price: {{ $total }}
                                                     br</strong></div>
 
                                         </div>

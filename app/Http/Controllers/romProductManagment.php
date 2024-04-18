@@ -13,6 +13,8 @@ use Illuminate\Http\Request;
 use App\Models\ProductCatagory;
 use RealRashid\SweetAlert\Facades\Alert;
 use Illuminate\Support\Facades\Validator;
+use App\Helpers\LogActivity;
+
 
 class romProductManagment extends Controller
 {
@@ -49,6 +51,8 @@ class romProductManagment extends Controller
         $products->KD_ID = $request->kd_id;
 
         $products->save();
+       LogActivity::addToLog('Product Register store');
+
         Alert::toast('Product Added Successfully', 'success');
         return redirect('/rom/view/product');
     }
@@ -88,15 +92,18 @@ class romProductManagment extends Controller
              ]);
 
         $products = product::where('id',$id)->update(['Qty'=> $request->Qty]);
+    LogActivity::addToLog('update product');
+
         Alert::toast('Product Updated Successfully', 'success');
         return redirect('/rom/view/product');
     }
     public function delete_product($id)
     {
-        //$products = product::find($id);
-        //$products->delete();
+        $products = product::find($id);
+        $products->delete();
+    LogActivity::addToLog('Delete Product');
 
-        //Alert::toast('Product Deleted Successfully', 'success');
+        Alert::toast('Product Deleted Successfully', 'success');
         return redirect('/rom/view/product');
     }
 }

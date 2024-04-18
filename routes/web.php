@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\hoController;
 use App\Http\Controllers\officerController;
 use App\Http\Controllers\analyistController;
+use App\Http\Controllers\accionController;
 
 
 use App\Http\Controllers\QrController;
@@ -102,6 +103,8 @@ Route::middleware(['auth','verified'])->group(function(){
   return view('admin.client_info');
 
 });
+
+
   Route::get('/adminDashboard', [adminController::class, 'index'])->middleware('admin');
   Route::get('/admin/create/clients', [adminController::class, 'create_client'])->middleware('admin');
   Route::post('/admin/create/posts', [adminController::class, 'store_client'])->middleware('admin');
@@ -115,15 +118,25 @@ Route::middleware(['auth','verified'])->group(function(){
   Route::get('/admin/edit/client/{id}',[adminController::class, 'edit_client'])->middleware('admin');
   Route::post('/admin/editedclientStore/{id}',[adminController::class, 'edited_client_store'])->middleware('admin');
 
+  Route::get('admin/get-cities/{regionId}',[adminController::class, 'getCities'])->middleware('admin');
+
 
   Route::get('/admin/delete/user/{id}',[adminController::class, 'delete_user'])->middleware('admin');
 
   Route::get('/admin/create/tm',[adminController::class, 'create_tm'])->middleware('admin');
   Route::post('/admin/create/tm/post',[adminController::class, 'store_tm'])->middleware('admin');
 
+   Route::get('/admin/create/facilator',[adminController::class, 'create_facilator'])->middleware('admin');
+  Route::post('/admin/create/facilator/post',[adminController::class, 'store_facilator'])->middleware('admin');
+
+
+
 
   Route::get('/todays/orders', [adminController::class, 'orderIndex'])->middleware('admin');
+
   Route::get('/admin/order/history', [adminController::class, 'orderHistory'])->middleware('admin');
+
+  Route::get('/admin/order/Status', [adminController::class, 'orderstatus'])->middleware('admin');
   Route::get('/admin/undelivered/orders', [adminController::class, 'undeliveredIndex'])->middleware('admin');
   Route::post('/admin/undelivered/order/details', [adminController::class, 'undeliveredDetails'])->middleware('admin');
   Route::get('/admin/payment/report', [report::class, 'adminPaymentReport'])->middleware('admin');
@@ -155,7 +168,22 @@ Route::middleware(['auth','verified'])->group(function(){
   Route::post('/admin/user/activate/{id}',[adminController::class, 'activate_user'])->middleware('admin');
   Route::post('/admin/user/deactivate/{id}',[adminController::class, 'deactivate_user'])->middleware('admin');
   Route::get('/admin/user/changeStatus', [adminController::class, 'changeStatus'])->middleware('admin');
+  Route::get('/admin/order/changeStatus', [adminController::class, 'changeorderStatus'])->middleware('admin');
   Route::get('/admin/client/changestatus', [adminController::class, 'changeClientStatus'])->middleware('admin');
+  Route::get('/admin/orderstatus/report', [adminController::class, 'order_status_report'])->middleware('admin');
+
+  Route::get('/admin/add/Region', [adminController::class, 'add_region'])->middleware('admin');
+  Route::post('/admin/StoreRegion', [adminController::class, 'store_region'])->middleware('admin');
+  Route::get('/admin/view/Region', [adminController::class, 'view_region'])->middleware('admin');
+  Route::get('/admin/edit/region/{id}', [adminController::class, 'edit_region'])->middleware('admin');
+  Route::post('/admin/editedregionStore/{id}', [adminController::class, 'edited_region_store'])->middleware('admin');
+
+  Route::get('/admin/add/City', [adminController::class, 'add_city'])->middleware('admin');
+  Route::post('/admin/StoreCity', [adminController::class, 'store_city'])->middleware('admin');
+  Route::get('/admin/view/City', [adminController::class, 'view_city'])->middleware('admin');
+  Route::get('/admin/edit/city/{id}', [adminController::class, 'edit_city'])->middleware('admin');
+  Route::post('/admin/editedcityStore/{id}', [adminController::class, 'edited_city_store'])->middleware('admin');
+
 
 
   Route::get('/admin/Order_hierarchy', [adminController::class, 'Order_hierarchy'])->name('hierarchy.index')->middleware('admin');
@@ -182,56 +210,132 @@ Route::post('api/admin/fetch-productType', [adminController::class, 'fetchProduc
   /* *********************************   HO Routes *******************************************************    */
 Route::get('/hoDashboard', [hoController::class, 'index'])->middleware('ho');
 
-Route::get('/ho/lastMile/report', [report::class, 'hoLastmileReport'])->middleware('ho')->name('hoLastmileReport');
-Route::get('/ho/lastMile/filterlastMile', [report::class, 'filterlastMile'])->middleware('ho');
+Route::get('/ho/lastMile/report', [report::class, 'hoLastmileReport'])->middleware('hoadmin')->name('hoLastmileReport');
+Route::get('/ho/lastMile/filterlastMile', [report::class, 'filterlastMile'])->middleware('hoadmin');
+
+
+Route::get('/ho/loan/report', [report::class, 'holoanReport'])->middleware('hoadmin')->name('holoanReport');
+
+Route::post('/ho/order/details', [orderedProductsController::class, 'orderDetailsho'])->middleware('hoadmin');
+
+Route::post('/ho/order/detailsreport', [orderedProductsController::class, 'orderDetailshoreport'])->middleware('hoadmin');
+
+Route::get('/ho/order/report', [report::class, 'hoorderReport'])->middleware('hoadmin')->name('hoorderReport');
+Route::get('/ho/order/filterorder', [report::class, 'filterorder'])->middleware('hoadmin');
 
 
 
-Route::post('/ho/order/details', [orderedProductsController::class, 'orderDetailsho']);
+Route::get('/ho/onboarding/report', [report::class, 'hoonboardingReport'])->middleware('hoadmin')->name('hoonboardingReport');
+Route::get('/ho/onboarding/filteronboarding', [report::class, 'filteronboarding'])->middleware('hoadmin');
 
-Route::post('/ho/order/detailsreport', [orderedProductsController::class, 'orderDetailshoreport']);
-
-Route::get('/ho/order/report', [report::class, 'hoorderReport'])->middleware('ho')->name('hoorderReport');
-Route::get('/ho/order/filterorder', [report::class, 'filterorder'])->middleware('ho');
-
-
-Route::get('/ho/onboarding/report', [report::class, 'hoonboardingReport'])->middleware('ho')->name('hoonboardingReport');
-Route::get('/ho/onboarding/filteronboarding', [report::class, 'filteronboarding'])->middleware('ho');
-
-Route::get('/ho/orderfulfilment/report', [report::class, 'hoorderfulfilmentReport'])->middleware('ho')->name('hoorderfulfilmentReport');
-Route::get('/ho/fulfilment/filterOrders', [report::class, 'filterorders'])->middleware('ho');
+Route::get('/ho/orderfulfilment/report', [report::class, 'hoorderfulfilmentReport'])->middleware('hoadmin')->name('hoorderfulfilmentReport');
+Route::get('/ho/fulfilment/filterOrders', [report::class, 'filterorders'])->middleware('hoadmin');
 
 
 
-
-
-Route::post('/ho/user/details', [hoController::class, 'userdetail']);
-
-
-
-Route::get('/ho/productperagent/report', [report::class, 'hoproductperagentReport'])->middleware('ho')->name('hoproductperagentReport');
-Route::get('/ho/product/filterperagent', [report::class, 'filterproductperagent'])->middleware('ho');
+Route::get('/ho/user/details/export', [hoController::class, 'export'])->middleware('hoadmin');
 
 
 
-Route::get('/ho/productperloaction/report', [report::class, 'hoproductperloactionReport'])->middleware('ho')->name('hoproductperloactionReport');
-Route::get('/ho/product/filterlocation', [report::class, 'filterproductperloaction'])->middleware('ho');
+Route::post('/ho/user/details', [hoController::class, 'userdetail'])->middleware('hoadmin');
 
 
-Route::get('/ho/productpersubloaction/report', [report::class, 'hoproductpersubloactionReport'])->middleware('ho')->name('hoproductpersubloactionReport');
-Route::get('/ho/product/filtersublocation', [report::class, 'filterproductpersubloaction'])->middleware('ho');
+
+Route::get('/ho/productperagent/report', [report::class, 'hoproductperagentReport'])->middleware('hoadmin')->name('hoproductperagentReport');
+Route::get('/ho/product/filterperagent', [report::class, 'filterproductperagent'])->middleware('hoadmin');
+
+
+
+Route::get('/ho/productperloaction/report', [report::class, 'hoproductperloactionReport'])->middleware('hoadmin')->name('hoproductperloactionReport');
+Route::get('/ho/product/filterlocation', [report::class, 'filterproductperloaction'])->middleware('hoadmin');
+
+
+Route::get('/ho/productpersubloaction/report', [report::class, 'hoproductpersubloactionReport'])->middleware('hoadmin')->name('hoproductpersubloactionReport');
+Route::get('/ho/product/filtersublocation', [report::class, 'filterproductpersubloaction'])->middleware('hoadmin');
 
 
 
 
-// Route::post('/ho/order/detailstest', [report::class, 'test'])->name('approval.student.ajax.parent');
-Route::get('/ho/product/report', [report::class, 'hoproductReport'])->middleware('ho')->name('hoproductReport');
-Route::get('/ho/product/filterproduct', [report::class, 'filterproduct'])->middleware('ho');
 
-Route::get('/ho/password/change', [hoController::class, 'change_password'])->name('ho_change_password')->middleware('ho');
-Route::post('/ho/password/change/post', [hoController::class, 'update_password'])->middleware('ho');
+Route::get('/ho/product/report', [report::class, 'hoproductReport'])->middleware('hoadmin')->name('hoproductReport');
+Route::get('/ho/product/filterproduct', [report::class, 'filterproduct'])->middleware('hoadmin');
 
- /* *********************************   analyist Routes *******************************************************    */
+
+// Route::get('/ho/delivery/report', [report::class, 'hodeliveryReport'])->middleware('hoadmin')->name('hodeliveryReport');
+// Route::get('/ho/delivery/filterproduct', [report::class, 'filterdelivery'])->middleware('hoadmin');
+
+
+Route::get('/ho/orderall/report', [report::class, 'hoorderallReport'])->middleware('hoadmin')->name('hoorderallReport');
+Route::get('/ho/orderall/filterproduct', [report::class, 'filterorder'])->middleware('hoadmin');
+
+
+Route::get('/ho/deliveryperagent/report', [report::class, 'hodeliveryperagentReport'])->middleware('hoadmin');
+Route::get('/ho/delivery/filterperagent', [report::class, 'filterdeliveryperagent'])->middleware('hoadmin');
+
+Route::get('/ordersummary/report', [report::class, 'ordersummary'])->middleware('hoadmin');
+
+
+Route::get('/ho/ordercapture/report', [report::class, 'hodeliveryReport'])->middleware('hoadmin')->name('hodeliveryReport');
+
+Route::get('/ho/ordercapturetransaction/report', [report::class, 'ordercapturetransaction'])->middleware('hoadmin')->name('ordercapturetransaction');
+
+Route::get('/ho/orderfulfilment/report1', [report::class, 'orderfulfilment'])->middleware('hoadmin')->name('orderfulfilment');
+
+Route::get('/ho/orderfulfilmenttransaction/report', [report::class, 'orderfulfilmenttransaction'])->middleware('hoadmin')->name('orderfulfilmenttransaction');
+
+
+
+
+/* *********************************  accion  Routes *******************************************************    */
+Route::get('/accionDashboard', [accionController::class, 'index'])->middleware('accion');
+
+Route::get('/accion/order/report', [report::class, 'accionorderReport'])->middleware('accion')->name('accionorderReport');;
+Route::get('/accion/order/filterorder', [report::class, 'filterorderaccion'])->middleware('accion');
+
+Route::post('/accion/order/detailsreport', [orderedProductsController::class, 'orderDetailsaccionreport']);
+
+Route::get('/accion/lastMile/report', [report::class, 'accionLastmileReport'])->middleware('accion')->name('accionLastmileReport');
+Route::get('/accion/lastMile/filterlastMile', [report::class, 'filterlastMileaccion'])->middleware('accion');
+
+
+Route::post('/accion/order/details', [orderedProductsController::class, 'orderDetailsaccion']);
+
+Route::get('/accion/productperagent/report', [report::class, 'accionproductperagentReport'])->middleware('accion')->name('accionproductperagentReport');
+Route::get('/accion/product/filterperagent', [report::class, 'filterproductperagent'])->middleware('accion');
+
+
+
+Route::get('/accion/productperloaction/report', [report::class, 'accionproductperloactionReport'])->middleware('accion')->name('accionproductperloactionReport');
+Route::get('/accion/product/filterlocation', [report::class, 'filterproductperloaction'])->middleware('accion');
+
+
+Route::get('/accion/productpersubloaction/report', [report::class, 'accionproductpersubloactionReport'])->middleware('accion')->name('accionproductpersubloactionReport');
+Route::get('/accion/product/filtersublocation', [report::class, 'filterproductpersubloactionaccion'])->middleware('accion');
+
+
+
+
+
+Route::get('/accion/product/report', [report::class, 'accionproductReport'])->middleware('accion')->name('accionproductReport');
+Route::get('/accion/product/filterproduct', [report::class, 'filterproductaccion'])->middleware('accion');
+
+Route::get('/accion/target/report', [report::class, 'acciononboardingReport'])->middleware('accion')->name('acciononboardingReport');
+Route::get('/accion/target/filteronboarding', [report::class, 'filteronboardingaccion'])->middleware('accion');
+
+Route::get('/accion/orderfulfilment/report', [report::class, 'accionorderfulfilmentReport'])->middleware('accion')->name('accionorderfulfilmentReport');
+Route::get('/accion/fulfilment/filterOrders', [report::class, 'filterordersaccion'])->middleware('accion');
+
+
+Route::get('/accion/ordercapture/report', [report::class, 'hodeliveryReport'])->middleware('accion');
+
+Route::get('/accion/ordercapturetransaction/report', [report::class, 'ordercapturetransaction'])->middleware('accion');
+
+Route::get('/accion/orderfulfilment/report1', [report::class, 'orderfulfilment'])->middleware('accion');
+
+Route::get('/accion/orderfulfilmenttransaction/report', [report::class, 'orderfulfilmenttransaction'])->middleware('accion');
+
+
+  /* *********************************   analyist Routes *******************************************************    */
 Route::get('/analyistDashboard', [analyistController::class, 'index'])->middleware('analyist');
 
 Route::get('/analyist/view/clients', [analyistController::class, 'view_clients'])->middleware('analyist');
@@ -279,9 +383,13 @@ Route::put('/kd/return/decline', [orderedProductsController::class, 'kd_decline'
 
 
 
-Route::get('/orders/show', [orderedProductsController::class, 'kdView'])->middleware('kd');
-Route::get('/order/history', [orderedProductsController::class, 'orderHistory'])->middleware('kd');
+Route::get('/orders/show', [orderedProductsController::class, 'kdView'])->name('kdShow')->middleware('kd');
+//Route::get('/order/history', [orderedProductsController::class, 'orderHistory'])->middleware('kd');
 Route::get('/order/returned', [orderedProductsController::class, 'returned_order'])->middleware('kd');
+Route::get('/order/history', [orderedProductsController::class, 'searchrom'])->middleware('kd');
+Route::post('/order/history/post', [orderedProductsController::class, 'orderHistory'])->middleware('kd');
+
+
 
 Route::get('/handover/history', [handoverController::class, 'kdHandoverIndex'])->middleware('kd');
 Route::post('/handover/detail', [handoverController::class, 'kdHandoverDetails'])->middleware('kd');
@@ -298,7 +406,7 @@ Route::get('/key_distro/view/product', [key_distroProductManagment::class, 'view
 Route::get('/key_distro/edit/product/{id}', [key_distroProductManagment::class, 'edit_product'])->middleware('kd');
 Route::post('/key_distro/edit/product/post/{id}', [key_distroProductManagment::class, 'edited_product_store'])->middleware('kd');
 Route::get('/key_distro/delete/product/post/{id}', [key_distroProductManagment::class, 'delete_product'])->middleware('kd');
-Route::post('/handover1/post/nextpage', [handoverController::class, 'kdHandoverNextpage'])->middleware('kd');
+Route::post('/handover1/post/nextpage', [handoverController::class, 'kdHandoverNextpage'])->name('kd_handover')->middleware('kd');
 
 Route::get('/key_distro/Handover_to_rom', [handoverController::class, 'Handover_to_rom'])->middleware('kd');
 Route::post('/key_distro/Handover_to_rom/post', [handoverController::class, 'Handover_to_rom_post'])->middleware('kd');
@@ -323,6 +431,9 @@ Route::get('/handover_to_rsp1/post/create', [handoverController::class, 'Handove
 Route::post('/key_distro/fetch_rom_id/post', [handoverController::class, 'fetch_rom'])->middleware('kd');
 Route::post('/key_distro/fetch_rsp_id/post', [handoverController::class, 'fetch_rsp'])->middleware('kd');
 Route::post('/key_distro/fetch_client_id/post', [handoverController::class, 'fetch_client'])->middleware('kd');
+Route::post('/kd/orders/confirm', [orderedProductsController::class, 'confirm_kd'])->middleware('kd')->name('kd_confirm');
+
+
 
 
 
@@ -379,8 +490,9 @@ Route::put('/tm/return/decline', [orderedProductsController::class, 'tm_decline'
 
 
 
-Route::get('/tm/orders/show', [orderedProductsController::class, 'tmView'])->middleware('tm');
-Route::get('/tm/order/history', [orderedProductsController::class, 'tm_orderHistory'])->middleware('tm');
+Route::get('/tm/orders/show', [orderedProductsController::class, 'tmView'])->name('tmShow')->middleware('tm');
+Route::get('/tm/order/history', [orderedProductsController::class, 'searchrom'])->middleware('tm');
+Route::post('/tm/order/history/post', [orderedProductsController::class, 'tm_orderHistory'])->name('tmorderhistory')->middleware('tm');
 Route::get('/order/returned', [orderedProductsController::class, 'returned_order'])->middleware('tm');
 
 Route::get('/tm/handover/history', [handoverController::class, 'tmHandoverIndex'])->middleware('tm');
@@ -398,7 +510,7 @@ Route::get('/tm/view/product', [key_distroProductManagment::class, 'view_product
 Route::get('/tm/edit/product/{id}', [key_distroProductManagment::class, 'edit_product'])->middleware('tm');
 Route::post('/tm/edit/product/post/{id}', [key_distroProductManagment::class, 'edited_product_store'])->middleware('tm');
 Route::get('/tm/delete/product/post/{id}', [key_distroProductManagment::class, 'delete_product'])->middleware('tm');
-Route::post('/tm/handover1/post/nextpage', [handoverController::class, 'tmHandoverNextpage'])->middleware('tm');
+Route::post('/tm/handover1/post/nextpage', [handoverController::class, 'tmHandoverNextpage'])->name('tm_handover')->middleware('tm');
 
 Route::get('/tm/Handover_to_rom', [handoverController::class, 'tm_Handover_to_rom'])->middleware('tm');
 Route::post('/tm/Handover_to_rom/post', [handoverController::class, 'tm_Handover_to_rom_post'])->middleware('tm');
@@ -438,6 +550,8 @@ Route::put('/tm/confirmOrder/update/edit', [orderedProductsController::class, 't
 // Route::get('dropdown', [DropdownController::class, 'index']);
 Route::post('api/fetch-productType', [key_distroProductManagment::class, 'fetchProductType']);
 
+Route::post('/tm/orders/confirm', [orderedProductsController::class, 'confirm_tm'])->middleware('tm')->name('tm_confirm');
+
 
 
 
@@ -460,8 +574,9 @@ Route::post('/rom/password/change/post', [romProfileController::class, 'update_p
 
 
 
-Route::get('/rom/orders/show', [orderedProductsController::class, 'romView'])->middleware('rom');
+Route::get('/rom/orders/show', [orderedProductsController::class, 'romView'])->name('romShow')->middleware('rom');
 Route::get('/rom/orders/history', [orderedProductsController::class, 'romViewhistory'])->middleware('rom');
+Route::post('/rom/orders/BulkEdit', [orderedProductsController::class, 'BulkEdit'])->middleware('rom')->name('rom_edit');
 
 Route::post('/rom_unconfirmed_details', [orderedProductsController::class, 'rom_unconfirmed_details'])->middleware('rom');
 Route::post('/rom_orderhistory_details', [orderedProductsController::class, 'rom_order_history_details'])->middleware('rom');
@@ -500,8 +615,13 @@ Route::post('/rom/new/delivery/details', [handoverController::class, 'rom_newDel
 Route::get('/filter/clients', [handoverController::class, 'filter_deliveries'])->middleware('rom');
 
 
-Route::get('/delivery_search', [handover2Controller::class, 'delivery_search'])->middleware('rom');
+Route::get('/delivery_search', [handover2Controller::class, 'hierarchy_search'])->middleware('rom');
 Route::post('/delivery_search/post', [handover2Controller::class, 'delivery_search_post'])->middleware('rom');
+Route::post('/delivery_hierarchy/post', [handover2Controller::class, 'delivery_hierarchy_post'])->middleware('rom');
+Route::post('/delivery_search_cico/post', [handover2Controller::class, 'delivery_search_cico_post'])->middleware('rom');
+Route::post('/handover_to_cico/post', [handover2Controller::class, 'handover_cico'])->name("rom_handover_cico")->middleware('rom');
+
+
 
 Route::get('/qrscanner', function() {
     return view('ROM.qr_scanner');
@@ -525,6 +645,7 @@ Route::get('/rom/payment/', [handover2Controller::class, 'payment_page'])->middl
 Route::get('/process_payment/rom/', [handover2Controller::class, 'rom_processPayment']);
 
 
+
 Route::get('/rom/product/report', [report::class, 'romproductReport'])->middleware('rom')->name('romproductReport');
 Route::get('/rom/product/filterproduct', [report::class, 'filterproductrom'])->middleware('rom');
 
@@ -541,7 +662,10 @@ Route::get('/rom/productpersubloaction/report', [report::class, 'romproductpersu
 Route::get('/rom/product/filtersublocation', [report::class, 'filterproductpersubloactionrom'])->middleware('rom');
 
 
-
+Route::get('/rom/ordercapture/report', [report::class, 'orderCaptureReport'])->middleware('rom')->name('romdeliveryReport');
+Route::get('/rom/ordercapturetransaction/report', [report::class, 'romordercapturetransaction'])->middleware('rom')->name('romordercapturetransaction');
+Route::get('/rom/orderfulfilment/report', [report::class, 'romorderfulfilment'])->middleware('rom')->name('romorderfulfilment');
+Route::get('/rom/orderfulfilmenttransaction/report', [report::class, 'romorderfulfilmenttransaction'])->middleware('rom')->name('romorderfulfilmenttransaction');
 
 
 /* ***************************************RSP Routes *********************************************/
@@ -584,6 +708,8 @@ Route::get('/ordertracking', [CartController::class, 'order_tracking'])->middlew
 Route::post('/ordertracking/post', [CartController::class, 'order_tracking_post'])->middleware('agent');
 Route::get('/clients_order_list', [CartController::class, 'clients_order_list'])->middleware('agent');
 
+Route::get('/new/deliveriescico', [handoverController::class, 'agentDeliveryIndex'])->middleware('agent');
+
 
 
 
@@ -596,6 +722,25 @@ Route::post('/orderClear', [CartController::class, 'clearAllCart'])->middleware(
 
 Route::get('/agent/fetch_client/post', [CartController::class,'fetch_client_post'])->middleware('agent');
 Route::get('/agent/fetch_client', [CartController::class, 'fetch_client']);
+
+Route::post('/confirmDelivery/update/agent', [handoverController::class, 'update_agent'])->name('agent_confirm')->middleware('agent');
+Route::get('/delivery_searchcico', [handover2Controller::class, 'hierarchy_search_cico'])->middleware('agent');
+Route::post('/delivery_searchcico/post', [handover2Controller::class, 'delivery_search_post_cico'])->middleware('agent');
+
+
+Route::post('/agent/delivery/details', [handoverController::class, 'agentDeliveryDetails'])->middleware('agent');
+//Route::post('/agent/new/delivery/details', [handoverController::class, 'agent_newDeliveryDetails'])->middleware('agent');
+Route::post('/delivery2CartListagent', [delivery2cartController::class, 'cartListagent'])->name('agentdelivery2Cart.list')->middleware('agent');
+Route::post('/handover_to_clientagent/post/create', [handover2Controller::class, 'handover_to_clientagent'])->middleware('agent');
+Route::get('/process_payment/agent/', [handover2Controller::class, 'agent_processPayment']);
+Route::get('/repayment', [handover2Controller::class, 'repayment'])->middleware('agent');
+Route::post('/repayment_search/post', [handover2Controller::class, 'repayment_search'])->middleware('agent');
+Route::post('/repayment_pay', [handover2Controller::class, 'repayment_pay'])->middleware('agent');
+
+
+
+
+
 
 
 
@@ -614,11 +759,11 @@ Route::post('/order/post/create', [orderedProductsController::class, 'store'])->
 
 Route::get('/order/show', [orderedProductsController::class, 'index']);
 Route::post('/order/details', [orderedProductsController::class, 'orderDetails']);
-Route::post('/client/order/details', [clientOrderedProductsController::class, 'orderDetails']);
+Route::post('/client/order/details',[clientOrderedProductsController::class, 'orderDetails']);
 
 Route::put('/confirmOrder/update/edit', [orderedProductsController::class, 'update']);
 
-Route::put('/confirmDelivery/update/edit', [handoverController::class, 'update'])->middleware('rom');
+Route::post('/confirmDelivery/update/edit', [handoverController::class, 'update'])->name('rom_confirm')->middleware('rom');
 Route::put('/confirmDelivery2/update/edit', [handover2Controller::class, 'update']);
 
 //handover controller

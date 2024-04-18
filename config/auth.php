@@ -69,13 +69,21 @@ return [
             'driver' => 'eloquent',
             'model' => App\Models\admin::class,
         ],
-           'analyists' => [
-            'driver' => 'eloquent',
-            'model' => App\Models\analyist::class,
-        ],
          'hos' => [
             'driver' => 'eloquent',
             'model' => App\Models\ho::class,
+        ],
+         'hoadmins' => [
+            'driver' => 'eloquent',
+            'model' => App\Models\hoadmin::class,
+        ],
+        'accions' => [
+            'driver' => 'eloquent',
+            'model' => App\Models\accion::class,
+        ],
+        'analyists' => [
+            'driver' => 'eloquent',
+            'model' => App\Models\analyist::class,
         ],
           'officers' => [
             'driver' => 'eloquent',

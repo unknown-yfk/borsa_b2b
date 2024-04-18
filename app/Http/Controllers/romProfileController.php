@@ -22,6 +22,8 @@ use App\Models\delivery1Products;
 use App\Models\delivery_4products;
 use Illuminate\Support\Facades\Hash;
 use RealRashid\SweetAlert\Facades\Alert;
+use App\Helpers\LogActivity;
+
 
 
 class romProfileController extends Controller
@@ -72,7 +74,7 @@ class romProfileController extends Controller
         ->join('ordered_products','ordered_products.order_id','=','orders.id')
         ->where('orders.rom_order_confirmation','confirmed')
         ->where('orders.rom_adjusted_confirmation','unconfirmed')
- 
+
 
         ->where('orders.rom_id',auth()->user()->id)->orderBy('created_at', 'DESC')
         ->where('orders.confirmStatus','returned_acceptance')
@@ -99,7 +101,7 @@ class romProfileController extends Controller
 
                 $activeDelivery = delivery1::where('rom_id',Auth::id())->where('confirmationStatus','unconfirmed')->count();
 
-                $delivery = delivery1::join('users','users.id','=','delivery1s.kd_id')
+           $delivery = delivery1::join('users','users.id','=','delivery1s.kd_id')
         ->join('key_distros','key_distros.user_id','=','delivery1s.kd_id')
         ->join('orders','orders.id','=','delivery1s.order_id')
         ->where('delivery1s.rom_id',auth()->user()->id)
@@ -303,6 +305,9 @@ class romProfileController extends Controller
             'ID_issue_date'=> $request->ID_issue_date,
             'ID_expiry_date'=> $request->ID_expiry_date,
         ]);
+        LogActivity::addToLog('Update Profile');
+
+
           Alert::toast('Successfully updated!', 'success');
          return redirect('/romDashboard');
     }
@@ -330,6 +335,7 @@ class romProfileController extends Controller
         //     'password' => Hash::make($request->password),
         // ];
         // $user->update($credentials);
+        LogActivity::addToLog('Change Password');
 
         Alert::toast('Password Changed Successfuly!', 'success');
          return redirect('/romDashboard');

@@ -32,8 +32,8 @@
                                 <th class="text-center align-middle py-3 px-0" style="width: 40px;"><a href="#" class="shop-tooltip float-none text-light" title="" data-original-title="Clear cart"><i class="ino ion-md-trash"></i></a></th>
                               </tr>
                             </thead>
-                            <tbody>
-                                   @php
+                           <tbody>
+                                  @php
                                         $totalSum = 0;
                                     @endphp
                                 @foreach ($orderedProducts as $item)
@@ -58,8 +58,8 @@
                                         {{$quantity_left= $item->attributes->ordered_quantity-$item->quantity}}
 
                                     @endif --}}
-                                    <td class="text-right font-weight-semibold align-middle p-4">{{$item->subTotal/$item->ordered_quantity}} br</td>
-                                        @if ($item->kd_adjusted_quantity == 0)
+                                    <td class="text-right font-weight-semibold align-middle p-4">{{$item->price}} br</td>
+                                  @if ($item->kd_adjusted_quantity == 0)
                                             <td class="align-middle p-4"><input type="number"
                                                     class="form-control text-center" value="{{ $item->ordered_quantity }}"
                                                     readonly></td>
@@ -75,15 +75,15 @@
                                                     {{ $item->subTotal }} br</td>
                                                              @php
                                                     // $totalSum += $p->ordered_quantity * $p->price;
-                                                    $totalSum += $item->ordered_quantity * $item->subTotal/$item->ordered_quantity;
+                                                    $totalSum += $item->ordered_quantity * $item->price;
 
                                                 @endphp
                                             @elseif ($item->kd_adjusted_quantity !== 0)
                                                 <td class="text-right font-weight-semibold align-middle p-4">
-                                                    {{  $item->kd_adjusted_quantity * $item->subTotal/$item->kd_adjusted_quantity }} br</td>
+                                                    {{  $item->kd_adjusted_quantity * $item->price }} br</td>
                                                        @php
                                                     // $totalSum += $p->delivered_quantity * $p->price;
-                                                    $totalSum += $item->kd_adjusted_quantity * $item->subTotal/$item->kd_adjusted_quantity;
+                                                    $totalSum += $item->kd_adjusted_quantity * $item->price;
 
                                                     // $totalSum += $p->kd_adjusted_quantity * $p->price;
                                                 @endphp

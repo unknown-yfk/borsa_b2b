@@ -16,6 +16,8 @@ use Illuminate\Http\Request;
 use App\Models\orderedProducts;
 use App\Models\Handover_hierarchy;
 
+use App\Helpers\LogActivity;
+
 use RealRashid\SweetAlert\Facades\Alert;
 
 class deliverycartController extends Controller
@@ -36,7 +38,7 @@ class deliverycartController extends Controller
         $client = order::join('users','users.id','=','orders.client_id')
         ->join('clients','clients.user_id','=','orders.client_id')
         ->where('orders.KD_id',auth()->user()->id)->get(['users.firstName','users.middleName'
-        ,'users.lastName','orders.id','orders.createdDate','orders.deliveryStatus']);
+        ,'users.lastName','orders.id','orders.createdDate','orders.deliveryStatus','orders.price_update']);
 
         $orderedProducts = orderedProducts::join('orders','orders.id','=','ordered_products.order_id')
         ->join('products','products.id','=','ordered_products.product_id')
@@ -60,7 +62,7 @@ class deliverycartController extends Controller
         $client = order::join('users','users.id','=','orders.client_id')
         ->join('clients','clients.user_id','=','orders.client_id')
         ->where('orders.KD_id',auth()->user()->id)->get(['users.firstName','users.middleName'
-        ,'users.lastName','orders.id','orders.createdDate','orders.deliveryStatus']);
+        ,'users.lastName','orders.id','orders.createdDate','orders.deliveryStatus','orders.price_update']);
 
         $orderedProducts = orderedProducts::join('orders','orders.id','=','ordered_products.order_id')
         ->join('products','products.id','=','ordered_products.product_id')

@@ -10,6 +10,8 @@ use App\Models\delivery1;
 use App\Models\delivery1Products;
 use App\Models\Handover_hierarchy;
 use App\Models\order;
+use App\Helpers\LogActivity;
+
 
 
 
@@ -43,18 +45,12 @@ public function cartList(Request $request)
         $row = [];
 
         foreach ($request->all() as $key => $value) {
-            // echo "Key: " . $key . ", Value: " . $value . "<br>";
 
              if (strpos($key, 'status_') === 0) {
                 $stat = explode("_",$key);
                 $itemId = $stat[1];
                 $itsStatus = $value;
                 $row[$itemId] = ["val" => $value];
-
-            //    echo count(array_unique($row));
-
-// echo $value;
-
 
 
              } elseif (strpos($key, 'quantity_') === 0) {
@@ -69,7 +65,7 @@ public function cartList(Request $request)
         }
 
 
-        // mndn nw yetesasatkut
+
         foreach($row as $key=>$val) {
 
             $id = $key;
@@ -81,35 +77,24 @@ public function cartList(Request $request)
             }
 
 
-            // $orderedProduct = OrderedProducts::join('orders','orders.id','=','ordered_products.order_id')
-            // ->join('products','products.id','=','ordered_products.product_id')
-            // ->where('ordered_products.product_id',$id)
-            // ->where('ordered_products.order_id',$request->order_id)
-            // ->update(['status'=> $status ,'kd_adjusted_quantity' => $quantity]);
 
-
-
-
-        // }
 
                $deliveredProductsaa=delivery1Products::join('delivery1s','delivery1s.id','=','delivery1_products.delivery1_id')
-        // ->join('products','products.id','=','delivery1_products.product_id')
+
         ->join('users','users.id','=','delivery1s.kd_id')
         ->join('key_distros','key_distros.user_id','=','delivery1s.kd_id')
         ->join('products','products.id','=','delivery1_products.product_id')
 
         ->where('delivery1_products.product_id',$id)
-        // ->where('delivery1s.rom_id',$user_id)
-        // ->where('delivery1s.rom_id',$user_id)
-        // ->where('ordered_products.product_id',$id)
+
         ->where('delivery1s.order_id',$request->order_id)
-      //  ->where('delivery1_products.id',$unique_id)
-        // ->get();
+
          ->update(['amount_status'=> $status ,'partial_quantity' => $quantity]);
 
 
          $deliveredProducts = delivery1Products::join('delivery1s','delivery1s.id','=','delivery1_products.delivery1_id')
         ->join('ordered_products','ordered_products.product_id','=','delivery1_products.product_id')
+        ->join('orders','orders.id','=','ordered_products.order_id')
         ->join('products','products.id','=','ordered_products.product_id')
         ->join('users','users.id','=','delivery1s.kd_id')
         ->join('key_distros','key_distros.user_id','=','delivery1s.kd_id')
@@ -118,44 +103,10 @@ public function cartList(Request $request)
         ->where('delivery1s.order_id',$request->order_id)
         ->where('ordered_products.order_id',$request->order_id)
         ->where('delivery1s.rom_id',auth()->user()->id)
-        ->get();
-        // echo $deliveredProducts;
-
-            //   $orderedProduct = delivery1Products::join('orders','orders.id','=','ordered_products.order_id')
-            // ->join('products','products.id','=','ordered_products.product_id')
-            // ->where('ordered_products.product_id',$id)
-            // ->where('ordered_products.order_id',$request->order_id)
-            // ->get();
-            // ->update(['status'=> $status ,'kd_adjusted_quantity' => $quantity]);
-
-            // $orderedProduct = OrderedProducts::join('orders','orders.id','=','ordered_products.order_id')
-            // ->join('products','products.id','=','ordered_products.product_id')
-            // ->where('ordered_products.product_id',$id)
-            // ->where('ordered_products.order_id',$request->order_id)
-            // ->update(['status'=> $status ,'kd_adjusted_quantity' => $quantity]);
-
-
+        ->get(['orders.price_update','delivery1_products.*','products.price','products.name','delivery1s.*','products.image']);
 
 
         }
-
-        // echo $quantity;
-
-
-
-//     $hierarchy = Handover_hierarchy::where('status','1')->get();
-//     $order = order::all();
-//     // $cartItems = \Cart::getContent();
-
-
-
-//        $hierarchy_id=delivery1::get('hierarchy_id');
-
-//          if($hierarchy_id[count($hierarchy_id)-1]->hierarchy_id == 2) {
-
-
-
-//  $id = $request->delivery1_id;
 
                $orderedBy=order::where('orders.id',$request->order_id)->get('orderedBy');
                $Kd_id=auth()->user()->id;
@@ -163,47 +114,10 @@ public function cartList(Request $request)
                $client=User::join('orders','orders.client_id','=','users.id')
                             ->where('orders.id',$request->order_id)
                            ->get(['users.firstName','users.middleName','users.lastName','users.id']);
-//             $deliveredProducts = delivery1Products::join('delivery1s','delivery1s.id','=','delivery1_products.delivery1_id')
-//         ->join('products','products.id','=','delivery1_products.product_id')
-//         ->where('delivery1s.rom_id',auth()->user()->id)->where('delivery1_products.delivery1_id',$id)->get();
-
-// ;
 
 
 return view('ROM.handover_to_client', compact('products','client','orderedBy','deliveredProducts'));
-                    //   }
 
-
-
-
-
-//         elseif ($hierarchy_id[count($hierarchy_id)-1]->hierarchy_id == 4){
-
-
-
-
-//                $orderedBy=order::where('orders.id',$order_id)->get('orderedBy');
-//                $orders = $row->attributes->order_id;
-//                $Kd_id=auth()->user()->id;
-//                $products =\Cart::getContent();
-
-
-//      $rsp=rsp::join('users','users.id','=','rsps.user_id')
-//                     ->get(['users.firstName','users.middleName','users.lastName','rsps.user_id']);
-
-
-//                   return view('ROM.deliveryCartList', compact('cartItems','rsp'));
-
-
-
-
-//                     }
-
-//     else {
-
-
-
-//         return view('ROM.nocart');
     }
 
     public function addToCart(Request $request)
@@ -311,6 +225,72 @@ return view('ROM.handover_to_client', compact('products','client','orderedBy','d
 
 
         return redirect()->route('delivery2Cart.list');
+    }
+    public function cartListagent(Request $request)
+    {
+        $row = [];
+        foreach ($request->all() as $key => $value) {
+
+             if (strpos($key, 'status_') === 0) {
+                $stat = explode("_",$key);
+                $itemId = $stat[1];
+                $itsStatus = $value;
+                $row[$itemId] = ["val" => $value];
+
+
+             } elseif (strpos($key, 'quantity_') === 0) {
+                $stat = explode("_",$key);
+                $itemId = $stat[1];
+                $itsStatus = $value;
+                $row[$itemId] = ["val" => $row[$itemId]['val'],"quantity" => $value];
+
+             }
+
+
+        }
+        foreach($row as $key=>$val) {
+
+            $id = $key;
+            $status = $val['val'];
+            $quantity = 0;
+            if($status == 'partial') {
+
+                $quantity = $val['quantity'];
+            }
+        $deliveredProductsaa=delivery1Products::join('delivery1s','delivery1s.id','=','delivery1_products.delivery1_id')
+        ->join('users','users.id','=','delivery1s.kd_id')
+        ->join('key_distros','key_distros.user_id','=','delivery1s.kd_id')
+        ->join('products','products.id','=','delivery1_products.product_id')
+
+        ->where('delivery1_products.product_id',$id)
+        ->where('delivery1s.order_id',$request->order_id)
+        ->update(['amount_status'=> $status ,'partial_quantity' => $quantity]);
+
+
+         $deliveredProducts = delivery1Products::join('delivery1s','delivery1s.id','=','delivery1_products.delivery1_id')
+        ->join('ordered_products','ordered_products.product_id','=','delivery1_products.product_id')
+        ->join('orders','orders.id','=','ordered_products.order_id')
+        ->join('products','products.id','=','ordered_products.product_id')
+        ->join('users','users.id','=','delivery1s.kd_id')
+        ->join('key_distros','key_distros.user_id','=','delivery1s.kd_id')
+        ->where('delivery1s.confirmationStatus','confirmed')
+
+        ->where('delivery1s.order_id',$request->order_id)
+        ->where('ordered_products.order_id',$request->order_id)
+        ->where('delivery1s.cico_id',auth()->user()->id)
+        ->get(['orders.price_update','delivery1_products.*','products.price','products.name','delivery1s.*','products.image']);
+
+        }
+               $orderedBy=order::where('orders.id',$request->order_id)->get('orderedBy');
+               $Kd_id=auth()->user()->id;
+               $products =\Cart::getContent();
+               $client=User::join('orders','orders.client_id','=','users.id')
+                            ->where('orders.id',$request->order_id)
+                           ->get(['users.firstName','users.middleName','users.lastName','users.id']);
+                 return view('agent.handover_to_client', compact('products','client','orderedBy','deliveredProducts'));
+
+
+
     }
 
 

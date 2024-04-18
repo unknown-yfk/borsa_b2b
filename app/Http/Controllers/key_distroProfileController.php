@@ -12,6 +12,7 @@ use Auth;
 use App;
 use App\Rules\MatchOldPassword;
 use App\Helpers\general;
+use App\Helpers\LogActivity;
 
 
 
@@ -272,6 +273,8 @@ public function store(Request $request)
             'longtude'=> $request->lng,
             // 'userPhoto'=> $user_proName,
         ]);
+        LogActivity::addToLog('update profile');
+
         Alert::toast('Successfully Updated!', 'success');
         return redirect('/key_distroDashboard');
 
@@ -301,6 +304,7 @@ public function store(Request $request)
         //     'password' => Hash::make($request->password),
         // ];
         // $user->update($credentials);
+            LogActivity::addToLog('change password');
 
         Alert::toast('Password Changed Successfuly!', 'success');
          return redirect('/key_distroDashboard');

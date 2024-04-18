@@ -15,6 +15,9 @@ class delivery1 extends Model
         'Hierarchy_id',
         'ConfirmationStatus',
         'deliveryTotalPrice',
+        'cico_confirmation',
+        'handover_to_cico',
+        'cico_id',
 
 
     ];

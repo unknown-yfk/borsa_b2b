@@ -6,6 +6,8 @@ use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Auth;
+use App\Helpers\LogActivity;
+
 
 class officer
 {
@@ -24,6 +26,8 @@ class officer
            }
         else
         {
+            LogActivity::addToLog('Logout');
+
             Session::flush();
             Auth::logout();
             return redirect('login')->with('warning', 'An authorized user tried to perform some action!');

@@ -52,7 +52,12 @@
                                         class="form-control">
                                 </div>
                                 <button type="submit" class="btn btn-primary">Filter</button>
+
                         </form>
+                         <form action="{{ '/ho/user/details/export' }}" method="GET" class="filter-form">
+                        <button type="submit" class="btn btn-primary">Export All</button>
+                         </form>
+
                             <table id="table" class="display nowrap" style="width:100%">
                                 <thead>
                                     <tr>
@@ -104,6 +109,7 @@
                                     @endif
                                 </tbody>
                             </table>
+                            {{-- {{ $users->links() }} --}}
 
 
                         </div>
@@ -117,9 +123,41 @@
         $('#table').DataTable({
             dom: 'Bfrtip',
             buttons: [
-                'copy', 'csv', 'excel', 'pdf', 'print'
-            ]
+                 'copy', 'csv', 'excel', 'pdf', 'print'
+
+            ],
+            paging: true,
+        pageLength: 10,
+
         });
+         function exportDetailsData() {
+
+            var selectedRow = table.rows({ selected: true }).data()[0];
+
+
+            if (selectedRow) {
+                // Extract the user ID from the selected row
+                var userId = selectedRow[0]; // Adjust the index as needed
+
+                // Make an AJAX request to the server to handle the export
+                $.ajax({
+                    url: '{{ url("/ho/user/details/export") }}', // Replace with your export route
+                    method: 'POST',
+                    data: { user_id: userId },
+                    success: function (response) {
+                        // Handle the success response (e.g., open the exported file)
+                        console.log('Export successful:', response);
+                    },
+                    error: function (error) {
+                        // Handle the error response
+                        console.error('Export error:', error);
+                    }
+                });
+            } else {
+                // Inform the user to select a row
+                alert('Please select a row to export details.');
+            }
+        }
 
     </script>
 

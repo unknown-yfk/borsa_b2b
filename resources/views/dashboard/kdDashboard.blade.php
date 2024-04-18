@@ -356,7 +356,7 @@
                                                 <th>Client</th>
                                                 <th>Order Date</th>
                                                 <th>Confirmation Status</th>
-                                                <th>Action</th>
+                                                {{-- <th>Action</th> --}}
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -367,7 +367,7 @@
                                                         {{ $order->lastName }}</td>
                                                     <td>{{ $order->createdDate }}</td>
                                                     <td>{{ $order->confirmStatus }}</td>
-                                                    <td>
+                                                    {{-- <td>
                                                         <form action="{{ '/kd_unconfirmed_details' }}" method="POST">
                                                             @csrf
                                                             <input type="hidden" value="{{ $order->id }}"
@@ -375,7 +375,7 @@
                                                             <button type="submit" class="btn btn-outline-success">View
                                                                 details</button>
                                                         </form>
-                                                    </td>
+                                                    </td> --}}
                                                 </tr>
                                             @endforeach
                                         </tbody>
@@ -726,7 +726,7 @@
         <!-- partial:partials/_footer.html -->
         <footer class="footer">
             <div class="d-sm-flex justify-content-center justify-content-sm-between">
-                <span class="text-muted text-center text-sm-left d-block d-sm-inline-block">Copyright © Elebat solution<a
+                <span class="text-muted text-center text-sm-left d-block d-sm-inline-block">Copyright ï¿½ Elebat solution<a
                         href="https://Elebatsolution.com/" target="_blank">Elebatsolution.com </a>2023</span>
 
             </div>

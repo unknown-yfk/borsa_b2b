@@ -1,12 +1,8 @@
-
 @extends('layouts.mainlayout')
 @section('content')
     <div class="main-panel">
         <div class="content-wrapper">
-
-
-
-           <input type="hidden" {{$subtotal=0;}}/>
+            <input type="hidden" {{ $subtotal = 0 }} />
             <div class="col-lg-12 grid-margin stretch-card">
                 <div class="card">
                     <div class="card-body">
@@ -15,7 +11,6 @@
                         <p class="card-description">
                             <code>Delivery Cart</code>
                         </p>
-                        {{-- <input id="myInput" type="text" placeholder="Search orders here.."> --}}
                         <div class="table-responsive pt-3">
                             {{-- <table id="datatable" class="table"> --}}
                             <table id="recent-purchases-listing" class="table">
@@ -34,15 +29,15 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                      @php
+                                    @php
                                         $totalSum = 0;
                                     @endphp
                                     @foreach ($deliveredProducts as $item)
                                         <tr>
                                             <td class="p-4">
                                                 <div class="media align-items-center">
-                                                    <img src="{{ asset('/assets/product_img/'.$item->image) }}" class="d-block ui-w-40 ui-bordered mr-4"
-                                                        alt="">
+                                                    <img src="{{ asset('/assets/product_img/' . $item->image) }}"
+                                                        class="d-block ui-w-40 ui-bordered mr-4" alt="">
                                                     <div class="media-body">
                                                         <a href="#" class="d-block text-dark">{{ $item->name }}</a>
                                                         <small>
@@ -56,13 +51,14 @@
                                                 <span class="text-danger"> Delivery Quantity is greater than Recived
                                                     Quantity</span>
                                             @endif
-                                            <td class="text-right font-weight-semibold align-middle p-4">{{ $item->subTotal/$item->delivered_quantity }}
+                                            <td class="text-right font-weight-semibold align-middle p-4">
+                                                {{ $item->subTotal / $item->delivered_quantity }}
                                                 br</td>
                                             <td class="text-right font-weight-semibold align-middle p-4">
                                                 {{ $item->delivered_quantity }} </td>
 
 
-{{-- <td class="align-middle p-4"><input type="number"
+                                            {{-- <td class="align-middle p-4"><input type="number"
 
 Yabkal Elebat, [7/5/2023 9:45 AM]
 class="form-control text-center" value="{{ $item->partial_quantity }}"
@@ -71,31 +67,37 @@ class="form-control text-center" value="{{ $item->partial_quantity }}"
 
 
                                             @if ($item->partial_quantity == 0)
-                                          <td class="align-middle p-4"><input type="number"
-                                                    class="form-control text-center" value="{{ $item->delivered_quantity }}"
-                                                    readonly></td>
+                                                <td class="align-middle p-4"><input type="number"
+                                                        class="form-control text-center"
+                                                        value="{{ $item->delivered_quantity }}" readonly></td>
                                             @elseif ($item->partial_quantity !== 0)
                                                 <td class="align-middle p-4"><input type="number"
-                                                    class="form-control text-center" value="{{ $item->partial_quantity }}"
-                                                    readonly></td>
+                                                        class="form-control text-center"
+                                                        value="{{ $item->partial_quantity }}" readonly></td>
                                             @endif
 
 
 
                                             @if ($item->partial_quantity == 0)
                                                 <td class="text-right font-weight-semibold align-middle p-4">
-                                                    {{ $item->delivered_quantity * $item->subTotal/$item->delivered_quantity}} br</td>
-                                                     @php
-                                                $totalSum += $item->delivered_quantity * $item->subTotal/$item->delivered_quantity;
-                                            @endphp
-                                                    {{-- <input type="hidden" {{$subtotal=$item->delivered_quantity * $item->price + $subtotal}} /> --}}
+                                                    {{ ($item->delivered_quantity * $item->subTotal) / $item->delivered_quantity }}
+                                                    br</td>
+                                                @php
+                                                    $totalSum +=
+                                                        ($item->delivered_quantity * $item->subTotal) /
+                                                        $item->delivered_quantity;
+                                                @endphp
+                                                {{-- <input type="hidden" {{$subtotal=$item->delivered_quantity * $item->price + $subtotal}} /> --}}
                                             @elseif ($item->partial_quantity !== 0)
                                                 <td class="text-right font-weight-semibold align-middle p-4">
-                                                    {{ $item->partial_quantity * $item->subTotal/$item->delivered_quantity }} br</td>
-                                                      @php
-                                                $totalSum += $item->partial_quantity * $item->subTotal/$item->delivered_quantity;
-                                            @endphp
-                                                    {{-- <input type="hidden" {{$subtotal=$item->partial_quantity * $item->price + $subtotal}} /> --}}
+                                                    {{ ($item->partial_quantity * $item->subTotal) / $item->delivered_quantity }}
+                                                    br</td>
+                                                @php
+                                                    $totalSum +=
+                                                        ($item->partial_quantity * $item->subTotal) /
+                                                        $item->delivered_quantity;
+                                                @endphp
+                                                {{-- <input type="hidden" {{$subtotal=$item->partial_quantity * $item->price + $subtotal}} /> --}}
                                             @endif
 
                                             {{-- <td class="text-right font-weight-semibold align-middle p-4">{{ $item->price }}
@@ -122,7 +124,7 @@ class="form-control text-center" value="{{ $item->partial_quantity }}"
 
 
 
-                                           <div class="text-large"><strong>Total Price: {{ $totalSum }} birr </strong>
+                                    <div class="text-large"><strong>Total Price: {{ $totalSum }} birr </strong>
 
                                     </div>
                                 </div>
@@ -132,7 +134,7 @@ class="form-control text-center" value="{{ $item->partial_quantity }}"
                             <br>
 
 
-<form action="{{ '/handover_to_clientrom/post/create' }}" method="POST">
+                            <form action="{{ '/handover_to_clientrom/post/create' }}" method="POST">
 
                                 @csrf
 
@@ -146,12 +148,10 @@ class="form-control text-center" value="{{ $item->partial_quantity }}"
                                 @foreach ($deliveredProducts as $item)
                                     <input type="hidden" value="{{ $item->order_id }}" name="order_id">
                                     <input type="hidden" value="{{ $item->delivery1_id }}" name="delivery1_id">
-
-
                                 @endforeach
 
 
-<label>Select Client </label><br>
+                                <label>Select Client </label><br>
                                 <select id="client" name="client" class="form-control" required>
                                     <option value=""></option>
                                     @foreach ($client as $client)
@@ -160,7 +160,8 @@ class="form-control text-center" value="{{ $item->partial_quantity }}"
                                     @endforeach
                                 </select>
 
-                               <br> <div id="pincode-field" style="display:none;">
+                                <br>
+                                <div id="pincode-field" style="display:none;">
                                     <label for="pincode">Enter Pincode</label>
                                     {{-- <input type="text" name="pincode" id="pincode"> --}}
                                     {{-- <a href="/qrscanner">Scan QR Code</a> --}}
@@ -201,7 +202,7 @@ class="form-control text-center" value="{{ $item->partial_quantity }}"
 
 
                         </div>
-               </div>
+                    </div>
                 </div>
             </div>
         </div>

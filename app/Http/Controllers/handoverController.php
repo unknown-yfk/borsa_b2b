@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\tm;
+use Illuminate\Support\Facades\DB;
 use App\Models\rom;
 use App\Models\rsp;
 use App\Models\user;
@@ -24,7 +25,12 @@ use App\Models\undeliveredOrders;
 use App\Models\delivery_4products;
 use App\Models\Handover_hierarchy;
 use App\Models\undelivered1Products;
+use App\Models\order_statuses;
+use App\Models\cities;
 use RealRashid\SweetAlert\Facades\Alert;
+
+use App\Helpers\LogActivity;
+
 
 class handoverController extends Controller
 {
@@ -41,7 +47,8 @@ class handoverController extends Controller
         $deliveredProducts= delivery1Products::join('delivery1s','delivery1s.id','=','delivery1_products.delivery1_id')
         ->join('products','products.id','=','delivery1_products.product_id')
         ->where('delivery1s.kd_id',$kd_id)->where('delivery1_products.delivery1_id',$id)->get();
-        return view('TM.deliveryDetails',compact('deliveredProducts','rom'));
+        echo $deliveredProducts." ".$rom;
+    //    return view('TM.deliveryDetails',compact('deliveredProducts','rom'));
     }
     public function handOver1(Request $request )
     {
@@ -69,8 +76,9 @@ class handoverController extends Controller
             'kd_id'=> auth()->user()->id,
             'order_id'=>$request->order_id,
             'Hierarchy_id'=>'4',
-
             'deliveryTotalPrice'=>$request->total,
+            'cico_confirmation'	=>'unconfirmed',
+            'handover_to_cico'=> 'unconfirmed',
 
         ]);
         // iterate through the products and store them into the database
@@ -110,13 +118,13 @@ class handoverController extends Controller
 
       if ($request->hierarchy == 1){
 
-                  $order = order::all();
+         $order = order::all();
          $auth = auth()->user()->userName;
-        $order_id=$request->order_id;
+         $order_id=$request->order_id;
 
-      $orderedBy=order::where('orders.id',$order_id)->get('orderedBy');
+        $orderedBy=order::where('orders.id',$order_id)->get('orderedBy');
 
- $orders=order::all();
+        $orders=order::all();
 
         $hierarchy = Handover_hierarchy::where('status','1')->get();
 
@@ -139,49 +147,6 @@ class handoverController extends Controller
         return view('KD.Handover_to_client', compact('hierarchy','client','orderedBy','order','order_id','orderedProducts'));
 
      }
-
-     if ($request->hierarchy == 2){
-
-        $order_id=$request->order_id;
-
-
-        $rom_unique_id = $request-> rom_unique_id ;
-        $rom_name = rom::where('rom_unique_id', $rom_unique_id)->get();
-
-        $products = \Cart::getcontent();
-        $hierarchy = Handover_hierarchy::where('status','1')->get();
-        $cartItems = \Cart::getContent();
-       if($rom_unique_id=="")
-        {
-            $rom_unique_id="undefined";
-        }
-        $rom=rom::join('users','users.id','=','user_id')
-                 ->where('rom_unique_id', $rom_unique_id)
-                 ->get();
-
-         $orderedProducts = orderedProducts::join('orders','orders.id','=','ordered_products.order_id')
-        ->join('products','products.id','=','ordered_products.product_id')
-        ->where('ordered_products.status','!=','refusal')
-        ->where('ordered_products.order_id',$order_id)
-        ->get();
-         
-                 if (count($rom) === 0) {
-
-
-                         return view('KD.Handover_to_rom', compact('cartItems','rom','products','hierarchy','orderedProducts'));
-
-
-
-                 }
-
-                 else  {
-
-                return view('KD.fetch-rom_id', compact('cartItems','rom','products','hierarchy'));
-                 }
-
-
-     }
-
      if ($request->hierarchy == 3){
               return redirect('/key_distro/Handover_to_rsp');
 
@@ -189,9 +154,105 @@ class handoverController extends Controller
      }
 
     if ($request->hierarchy == 4){
-              return redirect('/key_distro/Handover_to_all');
+
+             return redirect('/key_distro/Handover_to_all');
 
     }
+     else{
+
+        $products = $request->input('products');
+        $orders=$request->input('orders');
+        foreach ($orders as $detail)
+        {
+        $order_id = $detail['orderId'];
+        $orderedProducts = orderedProducts::join('orders','orders.id','=','ordered_products.order_id')
+        ->join('products','products.id','=','ordered_products.product_id')
+        ->where('ordered_products.status','!=','refusal')
+        ->where('ordered_products.order_id',$order_id)->get();
+
+       $order = order::where('id',$order_id)->update(['handoverStatus'=> 'confirmed']);
+    //    $delivery1 = delivery1::where('id',$order_id)->update(['Hierarchy_id'=> '1']);
+       $client_detail = order::join('clients','clients.user_id','=','orders.client_id')
+        ->where('orders.id','=',$order_id)
+         ->get(['clients.City']);
+         $City= $client_detail[0]->City;
+         $rom=$request->rom_user_id ;
+        $delivery1 = delivery1::create([
+            'rom_id'=>$request->rom_id,
+            'kd_id'=> auth()->user()->id,
+            'order_id'=>$order_id,
+            'Hierarchy_id'=>$request->hierarchy,
+            'handoverStatus'=>'unconfirmed',
+
+            'confirmationStatus'=> 'unconfirmed',
+            'deliveryTotalPrice'=>'0',
+             'cico_confirmation'	=>'unconfirmed',
+            'handover_to_cico'=> 'unconfirmed',
+
+        ]);
+        $total=0;
+
+        foreach($orderedProducts as $product){
+
+            if ($product->kd_adjusted_quantity === 0) {
+                if($product->price_update === 0)
+                {
+
+                $subTotal = $product->subTotal/$product->ordered_quantity * $product->ordered_quantity;
+                $delivered_quantity = $product->ordered_quantity;
+
+                 }
+                 else if($product->price_update === 1){
+                $subTotal = $product->price * $product->ordered_quantity;
+                $delivered_quantity = $product->ordered_quantity;
+                 }
+                 $total=$total+ $subTotal;
+
+            }
+
+            else {
+                 if ($product->price_update === 0) {
+                $subTotal = $product->subTotal/$product->ordered_quantity * $product->kd_adjusted_quantity;
+                $delivered_quantity = $product->kd_adjusted_quantity;
+
+                 }
+                 else if($product->price_update === 1){
+                $subTotal = $product->price * $product->kd_adjusted_quantity;
+                $delivered_quantity = $product->kd_adjusted_quantity;
+
+                 }
+                  $total=$total+ $subTotal;
+
+
+            }
+
+            delivery1Products::create([
+                'product_id' => $product->id,
+                'delivery1_id' => $delivery1->id,
+                'delivered_quantity' => $delivered_quantity,
+                'subTotal' => $subTotal,
+            ]);
+        }
+         $delivery1_update = Delivery1::where('id', $delivery1->id)->update([
+                     'deliveryTotalPrice' => $total
+                ]);
+
+        }
+        LogActivity::addToLog('handover to rom');
+        $update_end_date = cities::where('name',$City)->update(['order_status'=> '0']);
+        // $update_end_date = order_statuses::where('City',$City)->update(['enddate'=> now()->toDateTimeString()]);
+        $update_end_date = order_statuses::where('City',$City)->update(['enddate'=> now()->toDateTimeString(),'status' => '0']);
+        LogActivity::addToLog('Order End date set');
+
+        Alert::toast('Successfully Handovered', 'success');
+
+         \Cart::clear();
+
+
+          return redirect('/key_distroDashboard');
+
+     }
+
 
     }
 
@@ -202,41 +263,24 @@ class handoverController extends Controller
 
     public function tmHandoverNextpage(Request $request )
     {
-//
-if ($request->hierarchy == 1){
-            //   return redirect('/key_distro/Handover_to_client');
 
 
+     if ($request->hierarchy == 1){
                   $order = order::all();
-
-
-
-        // $hierarchy = Handover_hierarchy::where('status','1')->get();
-
          $auth = auth()->user()->userName;
         $order_id=$request->order_id;
-        // $client = order::join('users','users.id','=','orders.client_id')
-        // ->join('clients','clients.user_id','=','orders.client_id')
-        // ->where('orders.KD_id',auth()->user()->id)->get(['users.firstName','users.middleName'
-        // ,'users.lastName','orders.id','orders.createdDate','orders.deliveryStatus']);
 
-        // $orderedProducts = orderedProducts::join('orders','orders.id','=','ordered_products.order_id')
-        // ->join('products','products.id','=','ordered_products.product_id')
-        // ->where('ordered_products.order_id',$order_id)->get();
+      $orderedBy=order::where('orders.id',$order_id)->get(['orderedBy','price_update']);
 
-      $orderedBy=order::where('orders.id',$order_id)->get('orderedBy');
-
- $orders=order::all();
+      $orders=order::all();
 
         $hierarchy = Handover_hierarchy::where('status','1')->get();
 
          $auth = auth()->user()->userName;
-        // $order_id=$request->order_id;
+
         $client = User::join('orders','orders.client_id','=','users.id')
                             ->where('orders.id',$order_id)
                            ->get(['users.firstName','users.middleName','users.lastName','users.id']);
-        // ->where('orders.KD_id',auth()->user()->id)->get(['users.firstName','users.middleName'
-        // ,'users.lastName','orders.id','orders.createdDate','orders.deliveryStatus']);
 
         $orderedProducts = orderedProducts::join('orders','orders.id','=','ordered_products.order_id')
         ->join('products','products.id','=','ordered_products.product_id')
@@ -244,106 +288,127 @@ if ($request->hierarchy == 1){
         ->where('ordered_products.order_id',$order_id)
         ->get();
 
-
-// echo $order_id;
          $Kd_id=auth()->user()->id;
 
         return view('TM.Handover_to_client', compact('hierarchy','client','orderedBy','order','order_id','orderedProducts'));
-        // return view('KD.Handover_to_client');
-
-
-
-
-
-
 
 
      }
-
-     if ($request->hierarchy == 2){
-            //   return redirect('/key_distro/Handover_to_rom');
-
-        $order_id=$request->order_id;
-
-
-                  $rom_unique_id = $request-> rom_unique_id ;
-        $rom_name = rom::where('rom_unique_id', $rom_unique_id)->get();
-
-        $products = \Cart::getcontent();
-        $hierarchy = Handover_hierarchy::where('status','1')->get();
-        $cartItems = \Cart::getContent();
-         //dd($cartItems);
-        $rom=rom::join('users','users.id','=','user_id')
-                 ->where('rom_unique_id', $rom_unique_id)
-                 ->get();
-
-                       $orderedProducts = orderedProducts::join('orders','orders.id','=','ordered_products.order_id')
-        ->join('products','products.id','=','ordered_products.product_id')
-        ->where('ordered_products.status','!=','refusal')
-        ->where('ordered_products.order_id',$order_id)
-        ->get();
-
-                //  if (count($rom) === 0) {
-
-                    // success('The success message to display');
-                         return view('TM.Handover_to_rom', compact('cartItems','rom','products','hierarchy','orderedProducts'));
-                // return A;
-
-
-                //  }
-
-                //  else  {
-
-                // return view('TM.fetch-rom_id', compact('cartItems','rom','products','hierarchy'));
-                //  }
-
-
-     }
-
      if ($request->hierarchy == 3){
-              return redirect('/tm/Handover_to_rsp');
-
-
+            return redirect('/tm/Handover_to_rsp');
      }
 
     if ($request->hierarchy == 4){
-              return redirect('/tm/Handover_to_all');
+            return redirect('/tm/Handover_to_all');
+    }
+     else{
 
-    }   
+        $products = $request->input('products');
+        $orders=$request->input('orders');
+        foreach ($orders as $detail)
+        {
+        $order_id = $detail['orderId'];
+        $orderedProducts = orderedProducts::join('orders','orders.id','=','ordered_products.order_id')
+        ->join('products','products.id','=','ordered_products.product_id')
+        ->where('ordered_products.status','!=','refusal')
+        ->where('ordered_products.order_id',$order_id)->get();
+
+       $order = order::where('id',$order_id)->update(['handoverStatus'=> 'confirmed']);
+    //    $delivery1 = delivery1::where('id',$order_id)->update(['Hierarchy_id'=> '1']);
+       $client_detail = order::join('clients','clients.user_id','=','orders.client_id')
+        ->where('orders.id','=',$order_id)
+         ->get(['clients.City']);
+         $City= $client_detail[0]->City;
+         $rom=$request->rom_user_id ;
+
+      $tm=tm::join('users','users.id','=','tms.user_id')
+             ->where('users.id',auth()->user()->id)
+             ->get();
+
+     $tmkd_id = $tm[0]->kd_id;
+
+
+        $delivery1 = delivery1::create([
+            'rom_id'=>$request->rom_id,
+            'kd_id'=> $tmkd_id,
+            'order_id'=>$order_id,
+            'Hierarchy_id'=>$request->hierarchy,
+            'handoverStatus'=>'unconfirmed',
+
+            'confirmationStatus'=> 'unconfirmed',
+            'deliveryTotalPrice'=>'0',
+             'cico_confirmation'	=>'unconfirmed',
+            'handover_to_cico'=> 'unconfirmed',
+
+        ]);
+        $total=0;
+
+        foreach($orderedProducts as $product){
+
+            if ($product->kd_adjusted_quantity === 0) {
+                if($product->price_update === 0)
+                {
+
+                $subTotal = $product->subTotal/$product->ordered_quantity * $product->ordered_quantity;
+                $delivered_quantity = $product->ordered_quantity;
+
+                 }
+                 else if($product->price_update === 1){
+                $subTotal = $product->price * $product->ordered_quantity;
+                $delivered_quantity = $product->ordered_quantity;
+                 }
+                 $total=$total+ $subTotal;
+
+            }
+
+            else {
+                 if ($product->price_update === 0) {
+                $subTotal = $product->subTotal/$product->ordered_quantity * $product->kd_adjusted_quantity;
+                $delivered_quantity = $product->kd_adjusted_quantity;
+
+                 }
+                 else if($product->price_update === 1){
+                $subTotal = $product->price * $product->kd_adjusted_quantity;
+                $delivered_quantity = $product->kd_adjusted_quantity;
+
+                 }
+                  $total=$total+ $subTotal;
+
+
+            }
+
+            delivery1Products::create([
+                'product_id' => $product->id,
+                'delivery1_id' => $delivery1->id,
+                'delivered_quantity' => $delivered_quantity,
+                'subTotal' => $subTotal,
+            ]);
+        }
+         $delivery1_update = Delivery1::where('id', $delivery1->id)->update([
+                     'deliveryTotalPrice' => $total
+                ]);
+
+        }
+        LogActivity::addToLog('handover to rom');
+        $update_end_date = cities::where('name',$City)->update(['order_status'=> '0']);
+        // $update_end_date = order_statuses::where('City',$City)->update(['enddate'=> now()->toDateTimeString()]);
+        $update_end_date = order_statuses::where('City',$City)->update(['enddate'=> now()->toDateTimeString(),'status' => '0']);
+        LogActivity::addToLog('Order End date set');
+
+        Alert::toast('Successfully Handovered', 'success');
+
+         \Cart::clear();
+
+
+        return redirect('/tmDashboard');
+
+     }
     }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-      public function filter_deliveries( )
-
-
+      public function filter_deliveries()
     {
 
-    //       public function filter_deliveries_post( Request $request)
-
-
-    // {
-
-    // }
       $client_unique_id = $request-> client_unique_id ;
         $clients = client::join('users','users.id','=','clients.user_id')
         ->where('users.userType','client')
@@ -354,85 +419,54 @@ if ($request->hierarchy == 1){
         $client_unique_id = $request-> client_unique_id ;
         $client_name = client::where('client_unique_id', $client_unique_id)->get();
         $kd_name = client::join('users','users.id','=','clients.distro_id')->where('client_unique_id', $client_unique_id)->get(['firstName','middleName','lastName']);
-        //   echo count($client_name);
-
-
-             if (count($client_name) === 0){
-        Alert::toast('You entered wrong Client id', 'warning');
-
+        if (count($client_name) === 0)
+        {
+                Alert::toast('You entered wrong Client id', 'warning');
                 return redirect()->back();
-            }
-
-
-            elseif( $client_name[0]->client_unique_id == $request-> client_unique_id) {
-
-
-            return view('agent.client_info_display', compact('clients','client_name','kd_name'));
-
-            }
-
-
-
-        // return view('KD.Handover_to_rom');
-
+        }
+        elseif( $client_name[0]->client_unique_id == $request-> client_unique_id)
+        {
+        return view('agent.client_info_display', compact('clients','client_name','kd_name'));
+        }
     }
 
     public function fetch_client(Request $request)
-
-
     {
 
         $cartItems = \Cart::getContent();
 
-               foreach($cartItems as $row) {
+        foreach($cartItems as $row)
+        {
+	      $order_id = $row->attributes->order_id;
+
+        }
+
+        $orderedBy=order::where('orders.id',$order_id)->get('orderedBy');
 
 
-	     $order_id = $row->attributes->order_id; // whatever properties your model have
-//
-     }
-
-      $orderedBy=order::where('orders.id',$order_id)->get('orderedBy');
-
-
-         $orders = $row->attributes->order_id;
-         $Kd_id=auth()->user()->id;
+        $orders = $row->attributes->order_id;
+        $Kd_id=auth()->user()->id;
 
         $client_unique_id = $request-> client_unique_id ;
         $client_name = client::where('client_unique_id', $client_unique_id)->get();
 
         $products = \Cart::getcontent();
         $hierarchy = Handover_hierarchy::where('status','1')->get();
-         //dd($cartItems);
-         $c=client::join('users','users.id','=','clients.user_id')->get('clients.client_unique_id');
-        $clients=client::join('users','users.id','=','clients.user_id')->where('client_unique_id', $client_unique_id)
+        $c=client::join('users','users.id','=','clients.user_id')
+           ->get('clients.client_unique_id');
+        $clients=client::join('users','users.id','=','clients.user_id')
+                 ->where('client_unique_id', $client_unique_id)
                  ->get(['users.firstName','users.middleName'
-        ,'users.lastName','clients.user_id']);
+                      ,'users.lastName','clients.user_id']);
 
         return view('KD.fetch-client_id', compact('cartItems','clients','products','hierarchy','orderedBy','order_id'));
-
-
-
-
-
     }
+    public function Handover_to_client(Request $request)
+    {
+       $order = order::all();
+       $hierarchy = Handover_hierarchy::where('status','1')->get();
 
-
-
-
-       public function Handover_to_client(Request $request)
-
-
-       {
-
-
-
-    $order = order::all();
-
-
-
-        $hierarchy = Handover_hierarchy::where('status','1')->get();
-
-         $auth = auth()->user()->userName;
+        $auth = auth()->user()->userName;
         $order_id=$request->order_id;
         $client = order::join('users','users.id','=','orders.client_id')
         ->join('clients','clients.user_id','=','orders.client_id')
@@ -443,9 +477,9 @@ if ($request->hierarchy == 1){
         ->join('products','products.id','=','ordered_products.product_id')
         ->where('ordered_products.order_id',$order_id)->get();
 
-      $orderedBy=order::where('orders.id',$order_id)->get('orderedBy');
+       $orderedBy=order::where('orders.id',$order_id)->get('orderedBy');
 
- $orders=order::all();
+       $orders=order::all();
 
         $hierarchy = Handover_hierarchy::where('status','1')->get();
 
@@ -760,6 +794,8 @@ if ($request->hierarchy == 1){
                     'undelivered_quantity' => $product->attributes->ordered_quantity-$product->quantity,
 
                 ]);}
+            LogActivity::addToLog('handover to client');
+
 
         Alert::toast('Successfully Handovered to client', 'success');
          \Cart::clear();
@@ -994,6 +1030,8 @@ public function processPayment(Request $request)
         // ->where('orders.KD_id',auth()->user()->id)
         // ->update([ ]);
 // echo $orderedProducts;
+            LogActivity::addToLog('payment');
+
  Alert::toast('Successfully Paid', 'success');
 
 
@@ -1117,10 +1155,22 @@ public function processPayment(Request $request)
 
       $products = \Cart::getcontent();
         $hierarchy = Handover_hierarchy::where('status','1')->get();
-       $cartItems = \Cart::getContent();
+        $cartItems = delivery1::join('users','users.id','=','delivery1s.kd_id')
+        ->join('key_distros','key_distros.user_id','=','delivery1s.kd_id')
+        ->join('orders','orders.id','=','delivery1s.order_id')
+        ->join('clients','clients.user_id','=','orders.client_id')
+        ->where('delivery1s.confirmationStatus','confirmed')
+        ->where('clients.client_unique_id', $client_unique_id)
+        ->where('delivery1s.rom_id',auth()->user()->id)
+        ->where('delivery1s.handoverStatus','unconfirmed')
+        ->where('orders.deliveryStatus','!=','Delivered')
+
+        // ->get(['delivery1s.handoverStatus']);
+  // ->distinct('order_id')
+        ->get(['users.firstName','users.middleName'
+        ,'users.lastName','delivery1s.*']);
          //dd($cartItems);
         $rom=rom::join('users','users.id','=','roms.user_id')
-
         ->get(['users.firstName','users.middleName'
         ,'users.lastName','roms.user_id']);
         return view('KD.deliveryCartlist1', compact('cartItems','rom','products','hierarchy'));
@@ -1162,8 +1212,6 @@ public function processPayment(Request $request)
 
 
       public function fetch_rom(Request $request)
-
-
     {
 
          $order_id = $request ->order_id;
@@ -1238,7 +1286,7 @@ public function processPayment(Request $request)
                  if (count($rom) === 0) {
 
                     // success('The success message to display');
-                         return view('TM.Handover_to_rom', compact('cartItems','rom','products','hierarchy'))->with('warning','Dont Open this link');
+                         return view('TM.Handover_to_rom', compact('cartItems','rom','products','hierarchy','orderedProducts'))->with('warning','Dont Open this link');
                 // return A;
 
 
@@ -1255,44 +1303,88 @@ public function processPayment(Request $request)
 
 
 public function Handover_to_rom_post(Request $request )
-
     {
 
-  $order_id=$request->order_id;
+         $order_id=$request->order_id;
         $orderedProducts = orderedProducts::join('orders','orders.id','=','ordered_products.order_id')
         ->join('products','products.id','=','ordered_products.product_id')
         ->where('ordered_products.status','!=','refusal')
         ->where('ordered_products.order_id',$order_id)->get();
 
+
+
        $order = order::where('id',$order_id)->update(['handoverStatus'=> 'confirmed']);
+
+
+       $client_detail = order::join('clients','clients.user_id','=','orders.client_id')
+        ->where('orders.id','=',$order_id)
+         ->get(['clients.City']);
+         $City= $client_detail[0]->City;
+
+
     //    $delivery1 = delivery1::where('id',$order_id)->update(['Hierarchy_id'=> '1']);
 
         $products = \Cart::getcontent();
-        $rom_unique_id = $request-> rom_user_id ;
+        $rom_unique_id = $request->rom_user_id ;
 
          $rom=rom::join('users','users.id','=','roms.user_id')
                  ->where('rom_unique_id', $rom_unique_id)
                  ->get('roms.user_id');
 
         $delivery1 = delivery1::create([
-            'rom_id'=>$request-> rom_user_id,
+            'rom_id'=>$request->rom_user_id,
             'kd_id'=> auth()->user()->id,
             'order_id'=>$request->order_id,
-            'Hierarchy_id'=>'2',
+            'Hierarchy_id'=>$request->hierarchy_id,
             'handoverStatus'=>'unconfirmed',
             'confirmationStatus'=> 'unconfirmed',
             'deliveryTotalPrice'=>$request->total,
+            'cico_confirmation'	=>'unconfirmed',
+            'handover_to_cico'=> 'unconfirmed',
 
         ]);
+
+
         // iterate through the products and store them into the database
 
+
         foreach($orderedProducts as $product){
-            if ($product->kd_adjusted_quantity === 0) {
-               $subTotal = $product->price * $product->ordered_quantity;
+
+
+            if ($product->kd_adjusted_quantity === 0 || $product->kd_adjusted_quantity === null) {
+
+                if($product->price_update === 0 ||$product->price_update === null)
+                {
+
+
+                $subTotal = ($product->subTotal/$product->ordered_quantity) * $product->ordered_quantity;
                 $delivered_quantity = $product->ordered_quantity;
-            } else {
-                 $subTotal = $product->price * $product->ordered_quantity - $product->price * $product->kd_adjusted_quantity;
+
+                 }
+                 else if($product->price_update === 1){
+                $subTotal = $product->price * $product->ordered_quantity;
+                $delivered_quantity = $product->ordered_quantity;
+                 }
+
+            }
+
+            else {
+
+                 if ($product->price_update === 0 || $product->price_update === null)
+                 {
+
+                $subTotal = ($product->subTotal/$product->ordered_quantity) * $product->kd_adjusted_quantity;
                 $delivered_quantity = $product->kd_adjusted_quantity;
+
+                 }
+                 else if($product->price_update === 1){
+
+                $subTotal = $product->price * $product->kd_adjusted_quantity;
+                $delivered_quantity = $product->kd_adjusted_quantity;
+
+                 }
+
+
 
             }
 
@@ -1300,12 +1392,16 @@ public function Handover_to_rom_post(Request $request )
             // $new_stock=$stock[0]->Qty - $delivered_quantity;
             // $products_update = product::where('id',$product->id)->update(['Qty'=> $new_stock]);
             // Create the delivery1Products record using the calculated subTotal
+
+
             delivery1Products::create([
                 'product_id' => $product->id,
                 'delivery1_id' => $delivery1->id,
                 'delivered_quantity' => $delivered_quantity,
                 'subTotal' => $subTotal,
-            ]);}
+            ]);
+
+        }
             $undeliveredOrders = undeliveredOrders::create([
                 'rom_id'=>$request-> rom_user_id,
                 'kd_id'=> auth()->user()->id,
@@ -1321,19 +1417,26 @@ public function Handover_to_rom_post(Request $request )
 
                 ]);}
 
+       $update_end_date = cities::where('name',$City)->update(['order_status'=> '0']);
+      //  $update_end_date = order_statuses::where('City',$City)->update(['enddate'=> now()->toDateTimeString()]);
+        $update_end_date = order_statuses::where('City',$City)->update(['enddate'=> now()->toDateTimeString(),'status' => '0']);
+
+
+        LogActivity::addToLog('handover to rom');
+        LogActivity::addToLog('Order End date set');
         Alert::toast('Successfully Handovered', 'success');
 
          \Cart::clear();
 
 
-        return redirect('/key_distroDashboard');   
-             }
+       return redirect('/key_distroDashboard');
+       }
 
 
     public function tm_Handover_to_rom_post(Request $request )
 
     {
-$order_id=$request->order_id;
+        $order_id=$request->order_id;
         $orderedProducts = orderedProducts::join('orders','orders.id','=','ordered_products.order_id')
         ->join('products','products.id','=','ordered_products.product_id')
         ->where('ordered_products.status','!=','refusal')
@@ -1341,6 +1444,11 @@ $order_id=$request->order_id;
 
        $order = order::where('id',$order_id)->update(['handoverStatus'=> 'confirmed']);
     //    $delivery1 = delivery1::where('id',$order_id)->update(['Hierarchy_id'=> '1']);
+       $client_detail = order::join('clients','clients.user_id','=','orders.client_id')
+        ->where('orders.id','=',$order_id)
+         ->get(['clients.City']);
+         $City= $client_detail[0]->City;
+
 
         $products = \Cart::getcontent();
         $rom_unique_id = $request-> rom_user_id ;
@@ -1364,6 +1472,8 @@ $order_id=$request->order_id;
             'handoverStatus'=>'unconfirmed',
             'confirmationStatus'=> 'unconfirmed',
             'deliveryTotalPrice'=>$request->total,
+            'cico_confirmation'	=>'unconfirmed',
+            'handover_to_cico'=> 'unconfirmed',
 
         ]);
         // echo $orderedProducts;
@@ -1371,16 +1481,36 @@ $order_id=$request->order_id;
 
         foreach($orderedProducts as $product){
             // echo $product;
-             if ($product->kd_adjusted_quantity === 0) {
+            if ($product->kd_adjusted_quantity === 0) {
+                if($product->price_update === 0)
+                {
+
                 $subTotal = $product->subTotal/$product->ordered_quantity * $product->ordered_quantity;
                 $delivered_quantity = $product->ordered_quantity;
 
-
-            } else {
-                $subTotal = $product->subTotal/$product->kd_adjusted_quantity *  $product->kd_adjusted_quantity;
-                $delivered_quantity = $product->kd_adjusted_quantity;
+                 }
+                 else if($product->price_update === 1){
+                $subTotal = $product->price * $product->ordered_quantity;
+                $delivered_quantity = $product->ordered_quantity;
+                 }
 
             }
+
+            else {
+                 if ($product->price_update === 0) {
+                $subTotal = $product->subTotal/$product->ordered_quantity * $product->kd_adjusted_quantity;
+                $delivered_quantity = $product->kd_adjusted_quantity;
+
+                 }
+                 else if($product->price_update === 1){
+                $subTotal = $product->price * $product->kd_adjusted_quantity;
+                $delivered_quantity = $product->kd_adjusted_quantity;
+
+                 }
+
+
+            }
+
             // echo $product;
 
 
@@ -1406,6 +1536,11 @@ $order_id=$request->order_id;
                     'undelivered_quantity' => $product->attributes->ordered_quantity-$product->quantity,
 
                 ]);}
+        LogActivity::addToLog('handover to rom');
+        $update_end_date = cities::where('name',$City)->update(['order_status'=> '0']);
+        // $update_end_date = order_statuses::where('City',$City)->update(['enddate'=> now()->toDateTimeString()]);
+        $update_end_date = order_statuses::where('City',$City)->update(['enddate'=> now()->toDateTimeString(),'status' => '0']);
+        LogActivity::addToLog('Order End date set');
 
         Alert::toast('Successfully Handovered', 'success');
 
@@ -1545,24 +1680,167 @@ $order_id=$request->order_id;
         return view('KD.undeliveredDetails',compact('deliveredProducts','rom'));
 
     }
+
+     public function agentDeliveryIndex(Request $request )
+    {
+        $fromDate = $request->input('from_date');
+        $toDate = $request->input('to_date');
+        $regionFilters = $request->input('region_filter');
+        $cityFilters = $request->input('city_filter');
+
+        $uniqueRegions = client::distinct()->pluck('Region')->toArray();
+        $uniqueCities = [];
+
+        $client = delivery1::select(
+                    'users.firstName',
+                    'users.middleName',
+                    'users.lastName',
+                    'delivery1s.deliveryTotalPrice',
+                    'orders.created_at',
+                    'delivery1s.id',
+                    'clients.City',
+                    'clients.Region',
+                    DB::raw('GROUP_CONCAT(products.productlist_id) AS product_ids'),
+                    DB::raw('GROUP_CONCAT(products.id) AS productt_ids'),
+                    DB::raw('GROUP_CONCAT(products.price) AS product_price'),
+                    DB::raw('GROUP_CONCAT( delivery1_products.subTotal) AS price'),
+                    DB::raw('GROUP_CONCAT(delivery1_products.delivered_quantity) AS ordered_quantities'),
+                    DB::raw('GROUP_CONCAT(orders.price_update) AS price_updates'),
+
+                )
+                ->join('orders', 'orders.id', '=', 'delivery1s.order_id')
+                ->join('users', 'users.id', '=', 'orders.client_id')
+                ->join('clients', 'clients.user_id', '=', 'orders.client_id')
+                ->leftJoin('delivery1_products', 'delivery1_products.delivery1_id', '=', 'delivery1s.id')
+                ->leftJoin('products', 'products.id', '=', 'delivery1_products.product_id')
+                ->where('delivery1s.cico_id',auth()->user()->id)
+                ->where('delivery1s.confirmationStatus','confirmed')
+                ->where('delivery1s.handoverStatus','unconfirmed')
+                ->where('delivery1s.handover_to_cico','confirmed')
+                ->where('delivery1s.cico_confirmation','unconfirmed')
+                ->groupBy('orders.id','users.firstName',
+                'users.middleName',
+                'users.lastName',
+                'delivery1s.deliveryTotalPrice',
+                'orders.created_at',
+                'delivery1s.id',
+                'clients.City',
+                'clients.Region',)
+                ->orderBy('orders.created_at', 'DESC');
+
+                 if ($fromDate && $toDate) {
+                $client->whereBetween('orders.created_at', [$fromDate, $toDate]);
+            }
+
+
+            if (!$regionFilters) {
+                $uniqueCities = client::distinct()->pluck('City')->toArray();
+            }
+
+            if ($regionFilters) {
+                $client->whereIn('clients.Region', $regionFilters);
+
+
+                $uniqueCities = client::whereIn('Region', $regionFilters)->distinct()->pluck('City')->toArray();
+
+
+                if ($cityFilters) {
+                    $client->whereIn('clients.City', $cityFilters);
+                }
+            } elseif ($cityFilters) {
+                $client->whereIn('clients.City', $cityFilters);
+            }
+
+             $client=$client->get();
+             $new=count($client);
+
+            $product = delivery1::join('delivery1_products', 'delivery1_products.delivery1_id', '=', 'delivery1s.id')
+                ->join('products', 'products.id', '=', 'delivery1_products.product_id')
+                ->join('productlist', 'productlist.id', '=', 'products.productlist_id')
+                ->groupBy('productlist.id', 'productlist.name')
+                ->get(['productlist.name', 'productlist.id']);
+
+        return view('agent.newDeliveries',compact('product', 'uniqueRegions', 'uniqueCities','client','new'));
+
+    }
     public function romDeliveryIndex(Request $request )
     {
+        $fromDate = $request->input('from_date');
+        $toDate = $request->input('to_date');
+        $regionFilters = $request->input('region_filter');
+        $cityFilters = $request->input('city_filter');
 
-         $order_id=$request->order_id;
-        $delivery = delivery1::join('users','users.id','=','delivery1s.kd_id')
-        ->join('key_distros','key_distros.user_id','=','delivery1s.kd_id')->where('delivery1s.confirmationStatus','unconfirmed')
-        ->where('delivery1s.rom_id',auth()->user()->id)->get();
+            $uniqueRegions = client::distinct()->pluck('Region')->toArray();
+            $uniqueCities = [];
 
-        $deliveredProducts=delivery1::join('users','users.id','=','delivery1s.kd_id')
-        ->join('key_distros','key_distros.user_id','=','delivery1s.kd_id')
-        // ->join('clients','clients.user_id','=','orders.client_id')
-        // ->where('client_unique_id', $client_unique_id)
-        ->where('delivery1s.rom_id',auth()->user()->id)->where('delivery1s.confirmationStatus','unconfirmed')
-        ->where('delivery1s.handoverStatus','unconfirmed')->get(['users.firstName','users.middleName'
-        ,'users.lastName','delivery1s.*']);
-        // echo $deliveredProducts;
+        $client = delivery1::select(
+                    'users.firstName',
+                    'users.middleName',
+                    'users.lastName',
+                    'delivery1s.deliveryTotalPrice',
+                    'orders.created_at',
+                    'delivery1s.id',
+                    'clients.City',
+                    'clients.Region',
+                    DB::raw('GROUP_CONCAT(products.productlist_id) AS product_ids'),
+                    DB::raw('GROUP_CONCAT(products.id) AS productt_ids'),
+                    DB::raw('GROUP_CONCAT(products.price) AS product_price'),
+                    DB::raw('GROUP_CONCAT( delivery1_products.subTotal) AS price'),
+                    DB::raw('GROUP_CONCAT(delivery1_products.delivered_quantity) AS ordered_quantities'),
+                    DB::raw('GROUP_CONCAT(orders.price_update) AS price_updates'),
 
-        return view('ROM.newDeliveries',compact('deliveredProducts','delivery'));
+                )
+                ->join('orders', 'orders.id', '=', 'delivery1s.order_id')
+                ->join('users', 'users.id', '=', 'orders.client_id')
+                ->join('clients', 'clients.user_id', '=', 'orders.client_id')
+                ->leftJoin('delivery1_products', 'delivery1_products.delivery1_id', '=', 'delivery1s.id')
+                ->leftJoin('products', 'products.id', '=', 'delivery1_products.product_id')
+                ->where('delivery1s.rom_id',auth()->user()->id)
+                ->where('delivery1s.confirmationStatus','unconfirmed')
+                ->where('delivery1s.handoverStatus','unconfirmed')
+                ->groupBy('orders.id','users.firstName',
+                'users.middleName',
+                'users.lastName',
+                'delivery1s.deliveryTotalPrice',
+                'orders.created_at',
+                'delivery1s.id',
+                'clients.City',
+                'clients.Region',)
+                ->orderBy('orders.created_at', 'DESC');
+
+                 if ($fromDate && $toDate) {
+                $client->whereBetween('orders.created_at', [$fromDate, $toDate]);
+            }
+
+
+            if (!$regionFilters) {
+                $uniqueCities = client::distinct()->pluck('City')->toArray();
+            }
+
+            if ($regionFilters) {
+                $client->whereIn('clients.Region', $regionFilters);
+
+
+                $uniqueCities = client::whereIn('Region', $regionFilters)->distinct()->pluck('City')->toArray();
+
+
+                if ($cityFilters) {
+                    $client->whereIn('clients.City', $cityFilters);
+                }
+            } elseif ($cityFilters) {
+                $client->whereIn('clients.City', $cityFilters);
+            }
+
+             $client=$client->get();
+             $new=count($client);
+
+            $product = delivery1::join('delivery1_products', 'delivery1_products.delivery1_id', '=', 'delivery1s.id')
+                ->join('products', 'products.id', '=', 'delivery1_products.product_id')
+                ->join('productlist', 'productlist.id', '=', 'products.productlist_id')
+                ->groupBy('productlist.id', 'productlist.name')
+                ->get(['productlist.name', 'productlist.id']);
+
+        return view('ROM.newDeliveries',compact('product', 'uniqueRegions', 'uniqueCities','client','new'));
 
     }
     public function romDeliveryHistoryIndex( Request $request)
@@ -1617,6 +1895,7 @@ $order_id=$request->order_id;
 
         $deliveredProducts = delivery1Products::join('delivery1s','delivery1s.id','=','delivery1_products.delivery1_id')
         ->join('ordered_products','ordered_products.product_id','=','delivery1_products.product_id')
+        ->join('orders','orders.id','=','ordered_products.order_id')
         ->join('products','products.id','=','ordered_products.product_id')
         ->join('users','users.id','=','delivery1s.kd_id')
         ->join('key_distros','key_distros.user_id','=','delivery1s.kd_id')
@@ -1630,7 +1909,8 @@ $order_id=$request->order_id;
         // ->distinct('delivery1_products.id')
         // ->get(['delivery1_products.id AS unique_id','ordered_products.*','products.*','users.*','key_distros.*','delivery1s.*']);
 
-        ->get();
+        ->get(['orders.price_update','delivery1_products.*','products.price','products.image','products.description','products.name','delivery1s.*',
+        'ordered_products.ordered_quantity','ordered_products.kd_adjusted_quantity']);
 
 
 
@@ -1649,28 +1929,95 @@ $order_id=$request->order_id;
 
         $id = $request->delivery1_id;
         $delivery = delivery1::join('users','users.id','=','delivery1s.rom_id')
-
         ->where('delivery1s.rom_id',auth()->user()->id)
         ->get(['users.firstName','users.middleName','users.lastName','delivery1s.*']);
         $deliveredProducts = delivery1Products::join('delivery1s','delivery1s.id','=','delivery1_products.delivery1_id')
-            ->join('products','products.id','=','delivery1_products.product_id')
-        ->where('delivery1s.confirmationStatus','unconfirmed')
+         ->join('products','products.id','=','delivery1_products.product_id')
         ->join('users','users.id','=','delivery1s.kd_id')
         ->join('key_distros','key_distros.user_id','=','delivery1s.kd_id')
         ->where('delivery1s.order_id',$order_id)
-        ->where('delivery1s.rom_id',auth()->user()->id)->get();
+        ->where('delivery1s.confirmationStatus','unconfirmed')
+        ->where('delivery1s.rom_id',auth()->user()->id)
+        ->get();
+
         return view('ROM.newdeliverydetails',compact('deliveredProducts','delivery'));
     }
-
-
-
-
-    public function update(Request $request,)
+    public function update(Request $request)
     {
-        $delivery1update = delivery1::where('id',$request->delivery1s_id)->update([
-            'confirmationStatus'=>$request->confirm]);
+
+         $products = $request->input('products');
+         foreach ($products as $product) {
+            foreach ($product as $detail) {
+
+                $orderId = $detail['orderId'];
+
+                $delivery1update = delivery1::where('id',$orderId)->update([
+            'confirmationStatus'=>'confirmed']);
+            }
+        }
+
+       LogActivity::addToLog('new delivery confirm');
+
             Alert::toast('delivery Confirmed', 'success');
         return redirect('/romDashboard');
+    }
+
+     public function update_agent(Request $request)
+    {
+
+         $products = $request->input('products');
+         foreach ($products as $product) {
+            foreach ($product as $detail) {
+
+                $orderId = $detail['orderId'];
+
+                $delivery1update = delivery1::where('id',$orderId)->update([
+            'cico_confirmation'=>'confirmed']);
+            }
+        }
+
+       LogActivity::addToLog('new delivery confirm agent');
+
+       Alert::toast('delivery Confirmed', 'success');
+        return redirect('/agentDashboard');
+    }
+   public function agentDeliveryDetails(Request $request)
+      {
+         $order_id=$request->order_id;
+        $id = $request->delivery1_id;
+        $user_id=auth()->user()->id;
+        $delivery = delivery1::join('users','users.id','=','delivery1s.cico_id')
+        ->where('delivery1s.cico_id',$user_id)
+        ->first(['users.firstName','users.middleName','users.lastName','delivery1s.*']);
+
+        $deliveredProducts = delivery1Products::join('delivery1s','delivery1s.id','=','delivery1_products.delivery1_id')
+        ->join('ordered_products','ordered_products.product_id','=','delivery1_products.product_id')
+        ->join('orders','orders.id','=','ordered_products.order_id')
+        ->join('products','products.id','=','ordered_products.product_id')
+        ->join('users','users.id','=','delivery1s.kd_id')
+        ->join('key_distros','key_distros.user_id','=','delivery1s.kd_id')
+        // ->where('delivery1s.confirmationStatus','confirmed')
+        // ->where('delivery1s.handoverStatus','unconfirmed')
+
+
+        ->where('delivery1s.order_id',$order_id)
+        ->where('ordered_products.order_id',$order_id)
+        ->where('delivery1s.cico_id',auth()->user()->id)
+        // ->distinct('delivery1_products.id')
+        // ->get(['delivery1_products.id AS unique_id','ordered_products.*','products.*','users.*','key_distros.*','delivery1s.*']);
+
+        ->get(['orders.price_update','delivery1_products.*','products.price','products.image','products.description','products.name','delivery1s.*',
+        'ordered_products.ordered_quantity','ordered_products.kd_adjusted_quantity']);
+
+
+
+        // ->get();
+
+      return view('agent.deliveryDetails',compact('deliveredProducts','delivery'));
+        // echo $deliveredProducts;
+
+
+
     }
 
 }

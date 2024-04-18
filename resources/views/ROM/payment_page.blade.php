@@ -37,16 +37,26 @@
             <div class="container">
                 <h1 class="h3 mb-5">Payment</h1>
                 <form class="form-sample" action="/process_payment/rom/" method="GET" enctype="multipart/form-data">
-               
-                       
+                 @csrf
+
                 <div class="row">
-                       @csrf
+
                         <!-- Left -->
                         <input type="hidden" {{ $cbe_customer = ' ' }} />
                         <input type="hidden" {{ $hibret_customer = ' ' }} />
                         <input type="hidden" {{ $amhara_customer = ' ' }} />
+                         @php
+                                        $totalSum = 0.0;
+                                        $loan_ex = 0.0;
+                                        $cash = 0.0;
+                                        $max_loan=0.0;
 
-                        <div class="col-lg-8">
+
+                                    @endphp
+
+                          <input type="hidden" vlaue="{{ $max_loan = $loan[0]->max_amount }}" />
+
+                           <div class="col-lg-8">
                             <div class="accordion" id="accordionPayment">
                                 <!-- Credit card -->
                                 <div class="accordion-item mb-3">
@@ -167,8 +177,8 @@
                                 </div>
                             </div>
                         </div>
-                        <!-- Right -->
-                        <div class="col-lg-4">
+
+                         <div class="col-lg-4">
                             {{-- <form class="form-sample" action="/last_page"method="POST" enctype="multipart/form-data">
                             @csrf --}}
                             <div class="card position-sticky top-0">
@@ -176,14 +186,10 @@
 
                                     <h6 class="card-title mb-3">Payment Summary</h6>
 
-                                    @php
-                                        $totalSum = 0;
-                                    @endphp
 
-
-                                    {{-- @endforeach --}}
                                     @foreach ($deliveredProducts as $p)
                                         <div class="d-flex justify-content-between mb-1 small">
+
                                             <input type="hidden" vlaue="{{ $cbe = $p->CBEBank_Account_Number }}" />
                                             <input type="hidden" vlaue="{{ $hibret = $p->HibretBank_Account_Number }}" />
                                             <input type="hidden" vlaue="{{ $amhara = $p->AmharaBank_Account_Number }}" />
@@ -212,11 +218,14 @@
 
                                         </div>
                                     @endforeach
+
                                     <hr>
+
                                     <input type="hidden" value="{{ $p->delivery1_id }}" name="delivery1_id" />
 
 
                                     <input type="hidden" value="{{ $p->order_id }}" name="order_id" />
+
                                     <input type="hidden" value="{{ $p->createdDate }}" name="createdDate" />
 
                                     <input type="hidden" value="{{ $totalSum }}" name="total_price" />
@@ -224,12 +233,35 @@
                                     <div class="d-flex justify-content-between mb-4 small">
                                         <span>TOTAL</span> <strong class="text-dark">{{ $totalSum }} Birr</strong>
                                     </div>
+                                    @if($max_loan >=  $totalSum)
+
+                                        @php
+                                            $loan_ex=$totalSum;
+                                            $cash=0.0;
+                                        @endphp
+
+                                        @else
+
+                                        @php
+                                            $loan_ex=$max_loan;
+                                            $cash=$totalSum-$loan_ex;
+                                        @endphp
+
+                                        @endif
+                                    <label class="form-label" for="loan" >Loan</label>
+                                    <input  type="number" value="{{$loan_ex}}" id="loan" name="loan" min="0" step="any"  max="{{$max_loan}}" required/>
+                                    <label class="form-label" for="cash" >Cash</label>
+                                    <input  type="number" value="{{$cash}}" id="cash" name="cash" min="0" step="any" required/>
 
                                     <button type="submit"class="btn btn-primary w-100 mt-2">PAY</button>
 
                                 </div>
                             </div>
                         </div>
+
+
+                        <!-- Right -->
+
                 </div>
                 </form>
 
@@ -317,3 +349,6 @@
         } else document.getElementById('ifYes').style.visibility = 'hidden';
     </script>
 @endsection
+
+
+

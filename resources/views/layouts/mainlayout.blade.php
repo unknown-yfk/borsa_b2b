@@ -4,7 +4,7 @@
 <head>
   <!-- Required meta tags -->
  @include('layout.partials.head')
- 
+
 
 </head>
 <body>
@@ -62,16 +62,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
    @elseif(Auth::user()->userType=="admin")
 
 @include('layout.partials.nav')
@@ -86,15 +76,16 @@
 @include('layout.partials.usertype.ho.ho-sidebar')
 
 
-
-
-
 @elseif(Auth::user()->userType=="officer")
 
 @include('layout.partials.usertype.officer.officer-nav')
  <div class="container-fluid page-body-wrapper">
 @include('layout.partials.usertype.officer.officer-sidebar')
 
+@elseif(Auth::user()->userType=="accion")
+@include('layout.partials.usertype.accion.accion-nav')
+ <div class="container-fluid page-body-wrapper">
+@include('layout.partials.usertype.accion.accion-sidebar')
 
 @elseif(Auth::user()->userType=="analyist")
 @include('layout.partials.usertype.analyist.analyist-nav')
